@@ -64,9 +64,13 @@ export const changePasswordInitiate = (email: string, oldPassword: string) =>
   apiFetch('/api/v1/users/change-password/initiate', { method: 'POST', body: { email, oldPassword } })
 export const changePasswordVerify = (email: string, oldPassword: string, newPassword: string, otp: string) =>
   apiFetch('/api/v1/users/change-password/verify', { method: 'POST', body: { email, oldPassword, newPassword, otp } })
+export const resendPasswordChangeOtp = () =>
+  apiFetch('/api/v1/users/resend-password-change-otp', { method: 'POST' })
 export const changeEmailInitiate = (oldEmail: string, newEmail: string) =>
   apiFetch('/api/v1/users/change-email/initiate', { method: 'POST', body: { oldEmail, newEmail } })
 export const changeEmailVerify = (oldEmail: string, newEmail: string, otp: string) =>
   apiFetch('/api/v1/users/change-email/verify', { method: 'POST', body: { oldEmail, newEmail, otp } })
+export const resendEmailChangeOtp = () =>
+  apiFetch('/api/v1/users/resend-email-change-otp', { method: 'POST' })
 export const getEmergencyResources = () => apiFetch<EmergencyResource[]>('/api/v1/users/support/emergency-resources')
 export const ping = () => apiFetch('/api/v1/users/ping')
