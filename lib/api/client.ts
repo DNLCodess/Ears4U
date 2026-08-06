@@ -1,5 +1,7 @@
 import { getAccessToken, setAccessToken, clearAccessToken } from './token'
 import { ApiError, friendlyFor, COLD_START_MESSAGE, NETWORK_ERROR_MESSAGE } from './errors'
+import { MOCKS_ENABLED } from '../mocks'
+import { mockFetch } from './mock-fetch'
 
 const BASE = '/backend'
 const DEFAULT_COLD_START_MS = 8000
@@ -39,6 +41,10 @@ async function refresh(): Promise<boolean> {
 }
 
 export async function apiFetch<T = unknown>(path: string, opts: Opts = {}): Promise<T> {
+  if (MOCKS_ENABLED) {
+    return mockFetch<T>(path, opts)
+  }
+
   const { method = 'GET', body, auth = true, coldStartMs = DEFAULT_COLD_START_MS } = opts
 
   const doFetch = async (): Promise<Response> => {

@@ -1,9 +1,11 @@
 'use client'
 import { useEffect, useState, type ReactNode } from 'react'
+import { MOCKS_ENABLED } from '@/lib/mocks'
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
   const [waking, setWaking] = useState(false)
   useEffect(() => {
+    if (MOCKS_ENABLED) return
     const t = setTimeout(() => setWaking(true), 8000)
     fetch('/backend/actuator/health').catch(() => undefined).finally(() => {
       clearTimeout(t); setWaking(false)

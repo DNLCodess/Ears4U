@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+import { MOCKS_ENABLED } from "@/lib/mocks";
 
 const chillax = localFont({
   src: "./fonts/Chillax-Variable.woff2",
@@ -22,7 +23,14 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${chillax.variable} ${generalSans.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        {MOCKS_ENABLED ? (
+          <div className="fixed top-3 right-3 z-50 rounded-full border-[1.5px] border-marigold bg-card px-3 py-1 text-xs font-medium text-fir shadow-sm">
+            Preview data, not the live server
+          </div>
+        ) : null}
+      </body>
     </html>
   );
 }
