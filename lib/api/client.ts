@@ -1,5 +1,5 @@
 import { getAccessToken, setAccessToken, clearAccessToken } from './token'
-import { ApiError, friendlyFor, COLD_START_MESSAGE } from './errors'
+import { ApiError, friendlyFor, COLD_START_MESSAGE, NETWORK_ERROR_MESSAGE } from './errors'
 
 const BASE = '/backend'
 const DEFAULT_COLD_START_MS = 8000
@@ -23,7 +23,14 @@ async function parseBody(res: Response): Promise<unknown> {
 }
 
 async function refresh(): Promise<boolean> {
-  const res = await fetch(`${BASE}/api/v1/auth/user-refresh`, { method: 'POST' })
+  let res: Response
+  try {
+    res = await fetch(`${BASE}/api/v1/auth/user-refresh`, { method: 'POST' })
+  } catch {
+    // A network failure is not an auth failure. Let it propagate as an
+    // ApiError so the caller does not clear the token or redirect to sign-in.
+    throw new ApiError(0, NETWORK_ERROR_MESSAGE)
+  }
   if (!res.ok) return false
   const body = (await parseBody(res)) as { accessToken?: string } | undefined
   if (!body?.accessToken) return false
@@ -34,16 +41,20 @@ async function refresh(): Promise<boolean> {
 export async function apiFetch<T = unknown>(path: string, opts: Opts = {}): Promise<T> {
   const { method = 'GET', body, auth = true, coldStartMs = DEFAULT_COLD_START_MS } = opts
 
-  const doFetch = () => {
+  const doFetch = async (): Promise<Response> => {
     const headers = new Headers()
     if (body !== undefined) headers.set('content-type', 'application/json')
     const token = getAccessToken()
     if (auth && token) headers.set('authorization', `Bearer ${token}`)
-    return fetch(`${BASE}${path}`, {
-      method,
-      headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
-    })
+    try {
+      return await fetch(`${BASE}${path}`, {
+        method,
+        headers,
+        body: body === undefined ? undefined : JSON.stringify(body),
+      })
+    } catch {
+      throw new ApiError(0, NETWORK_ERROR_MESSAGE)
+    }
   }
 
   const started = Date.now()
@@ -53,6 +64,10 @@ export async function apiFetch<T = unknown>(path: string, opts: Opts = {}): Prom
     const ok = await refresh()
     if (ok) {
       res = await doFetch()
+      if (res.status === 401 || res.status === 403) {
+        clearAccessToken()
+        authExpiredCb?.()
+      }
     } else {
       clearAccessToken()
       authExpiredCb?.()

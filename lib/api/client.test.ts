@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { apiFetch, onAuthExpired } from './client'
 import { setAccessToken, getAccessToken, clearAccessToken } from './token'
-import { ApiError } from './errors'
+import { ApiError, NETWORK_ERROR_MESSAGE } from './errors'
 
 function jsonRes(status: number, body?: unknown) {
   return new Response(body === undefined ? null : JSON.stringify(body), {
@@ -69,5 +69,41 @@ describe('apiFetch', () => {
     await expect(apiFetch('/api/v1/auth/user-login', { auth: false, method: 'POST', body: {} }))
       .rejects.toBeInstanceOf(ApiError)
     expect(spy).toHaveBeenCalledTimes(1)
+  })
+
+  it('surfaces network failures as an ApiError with status 0', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('Failed to fetch'))
+    const err = (await apiFetch('/api/v1/users/ping', { auth: false }).catch(e => e)) as ApiError
+    expect(err).toBeInstanceOf(ApiError)
+    expect(err.status).toBe(0)
+    expect(err.friendly).toBe(NETWORK_ERROR_MESSAGE)
+  })
+
+  it('does not clear the token or fire onAuthExpired when refresh fails due to a network error', async () => {
+    setAccessToken('stale')
+    const expired = vi.fn()
+    onAuthExpired(expired)
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(jsonRes(401))
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    const err = (await apiFetch('/api/v1/journal/history').catch(e => e)) as ApiError
+    expect(err).toBeInstanceOf(ApiError)
+    expect(err.status).toBe(0)
+    expect(err.friendly).toBe(NETWORK_ERROR_MESSAGE)
+    expect(getAccessToken()).toBe('stale')
+    expect(expired).not.toHaveBeenCalled()
+  })
+
+  it('clears the token and fires onAuthExpired when the retry after a successful refresh is still unauthorized', async () => {
+    setAccessToken('stale')
+    const expired = vi.fn()
+    onAuthExpired(expired)
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(jsonRes(401))
+      .mockResolvedValueOnce(jsonRes(200, { accessToken: 'fresh' }))
+      .mockResolvedValueOnce(jsonRes(401))
+    await expect(apiFetch('/api/v1/journal/history')).rejects.toBeInstanceOf(ApiError)
+    expect(getAccessToken()).toBeNull()
+    expect(expired).toHaveBeenCalled()
   })
 })

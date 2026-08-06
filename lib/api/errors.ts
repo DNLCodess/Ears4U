@@ -13,6 +13,9 @@ const STATUS_MESSAGES: Record<number, string> = {
 export const COLD_START_MESSAGE =
   "The server is waking up. This can take about a minute after quiet periods."
 
+export const NETWORK_ERROR_MESSAGE =
+  "Could not reach the server. Check your connection and try again."
+
 export class ApiError extends Error {
   status: number
   friendly: string
