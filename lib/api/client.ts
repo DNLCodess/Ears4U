@@ -80,7 +80,7 @@ export async function apiFetch<T = unknown>(path: string, opts: Opts = {}): Prom
 
   if (!res.ok) {
     const msg = (parsed as { message?: string } | undefined)?.message
-    const coldStart = elapsed >= coldStartMs && (res.status === 503 || res.status === 502 || res.status === 504)
+    const coldStart = elapsed >= coldStartMs && [500, 502, 503, 504].includes(res.status)
     throw new ApiError(res.status, coldStart ? COLD_START_MESSAGE : friendlyFor(res.status, msg), coldStart)
   }
 

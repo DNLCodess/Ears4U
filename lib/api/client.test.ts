@@ -64,6 +64,14 @@ describe('apiFetch', () => {
     expect(err.coldStart).toBe(true)
   })
 
+  it('marks a slow 500 as cold start too, since the Next proxy surfaces 500 once it gives up waiting on a cold Render backend', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(
+      () => new Promise(resolve => setTimeout(() => resolve(jsonRes(500)), 30))
+    )
+    const err = (await apiFetch('/api/v1/users/ping', { auth: false, coldStartMs: 10 }).catch(e => e)) as ApiError
+    expect(err.coldStart).toBe(true)
+  })
+
   it('does not attempt refresh for auth:false requests', async () => {
     const spy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonRes(403))
     await expect(apiFetch('/api/v1/auth/user-login', { auth: false, method: 'POST', body: {} }))
