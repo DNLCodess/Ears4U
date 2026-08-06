@@ -66,3 +66,17 @@ FRONTEND_URLS=http://localhost:3000,https://earsforyou.app
 ## 5. Could you share a test account?
 
 To build and test the screens (dashboard, journal, chat) we need to log in. Registration sends an OTP to a real email, so we can do it ourselves with a personal address, but a dedicated test account (email + password) that we can all share would make things easier. There is also the admin "manual OTP" endpoint that can help if emails do not arrive.
+
+## 6. OTP codes end up in the URL for some endpoints
+
+**What we saw:** `/api/v1/auth/recovery/confirm` and the resend endpoints take `email` and `otp` as query string parameters instead of a request body. So a call looks like `POST /api/v1/auth/recovery/confirm?email=someone@example.com&otp=123456`.
+
+**Why it matters:** Query strings are easy to leak by accident. They typically get written to server access logs, proxy logs, and browser history, and they can show up in analytics tools that record full URLs. A one-time password sitting in plain text in a log file defeats a lot of the point of it being one-time and secret. We cannot fix this from the frontend since we just call the contract as it is.
+
+**What would help:** For these endpoints, accept `email` and `otp` in a JSON request body instead of the URL, the same way `/api/v1/auth/reset-password` already does. For example:
+
+```json
+{ "email": "someone@example.com", "otp": "123456" }
+```
+
+That keeps the code out of access logs while the rest of the request (method, path, auth) can stay the same.

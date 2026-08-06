@@ -15,12 +15,18 @@ function SignInForm() {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
+  function safeNext(): string {
+    const next = params.get('next')
+    if (next && next.startsWith('/') && !next.startsWith('//')) return next
+    return '/home'
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     setBusy(true); setError(null)
     try {
       await login(email, password)
-      router.replace(params.get('next') ?? '/home')
+      router.replace(safeNext())
     } catch (err) {
       setError(err instanceof ApiError && err.status === 403 && !err.coldStart
         ? 'Wrong email or password.' : err instanceof ApiError ? err.friendly : 'Something went wrong. Try again.')

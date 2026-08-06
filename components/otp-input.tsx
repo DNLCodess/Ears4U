@@ -55,19 +55,32 @@ export function OtpInput({ length = 6, onComplete }: { length?: number; onComple
 export function ResendButton({ cooldownSeconds = 60, onResend }:
   { cooldownSeconds?: number; onResend: () => Promise<unknown> }) {
   const [left, setLeft] = useState(cooldownSeconds)
+  const [error, setError] = useState<string | null>(null)
   useEffect(() => {
     if (left <= 0) return
     const t = setInterval(() => setLeft(s => s - 1), 1000)
     return () => clearInterval(t)
   }, [left])
+  async function handleClick() {
+    try {
+      await onResend()
+      setError(null)
+      setLeft(cooldownSeconds)
+    } catch {
+      setError('Could not resend. Try again.')
+    }
+  }
   return (
-    <button
-      type="button"
-      disabled={left > 0}
-      onClick={async () => { await onResend(); setLeft(cooldownSeconds) }}
-      className="text-sm underline underline-offset-4 disabled:no-underline disabled:opacity-60"
-    >
-      {left > 0 ? `Resend code (0:${String(left).padStart(2, '0')})` : 'Resend code'}
-    </button>
+    <div>
+      <button
+        type="button"
+        disabled={left > 0}
+        onClick={handleClick}
+        className="text-sm underline underline-offset-4 disabled:no-underline disabled:opacity-60"
+      >
+        {left > 0 ? `Resend code (0:${String(left).padStart(2, '0')})` : 'Resend code'}
+      </button>
+      {error ? <p role="alert" className="text-sm text-clay mt-1.5">{error}</p> : null}
+    </div>
   )
 }
