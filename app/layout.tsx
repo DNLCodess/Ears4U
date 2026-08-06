@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+import { QueryProvider } from "@/lib/query/provider";
 
 const chillax = localFont({
   src: "./fonts/Chillax-Variable.woff2",
@@ -22,7 +23,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${chillax.variable} ${generalSans.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col"><QueryProvider>{children}</QueryProvider></body>
     </html>
   );
 }
