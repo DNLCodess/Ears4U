@@ -35,13 +35,13 @@ This is the EARS FOR YOU user app: sign-in/register/verify/forgot-password/recov
 
 **Required env**
 
-- `API_URL` — base URL of the backend API (set in `.env.local`, for example `https://earsforyou-2.onrender.com`). Nothing in the browser ever talks to it directly; see the proxy note below.
+- `API_URL`: base URL of the backend API (set in `.env.local`, for example `https://earsforyou-2.onrender.com`). Nothing in the browser ever talks to it directly; see the proxy note below.
 
 **Scripts**
 
-- `npm run dev` — start the dev server at `http://localhost:3000`
-- `npm test` — run the Vitest unit suite
-- `npm run lint` — run ESLint
+- `npm run dev`: start the dev server at `http://localhost:3000`
+- `npm test`: run the Vitest unit suite
+- `npm run lint`: run ESLint
 
 **Proxy architecture**
 
