@@ -10,6 +10,7 @@ import {
 } from '@/lib/api/endpoints'
 import { qk } from '@/lib/query/keys'
 import { ApiError } from '@/lib/api/errors'
+import { passwordIssue } from '@/lib/password'
 import type { NotificationSettings, UpdateProfilePayload, UserProfile } from '@/lib/api/types'
 import { Lifeline } from '@/components/lifeline'
 import { Button } from '@/components/ui/button'
@@ -188,14 +189,16 @@ function ChangePasswordFlow({ email, onDone }: { email: string; onDone: () => vo
   }
 
   if (step === 'verify') {
-    const newPasswordValid = newPassword.length >= 8 && newPassword === confirmPassword
+    const pwIssue = passwordIssue(newPassword)
+    const newPasswordValid = !pwIssue && newPassword === confirmPassword
     return (
       <form onSubmit={e => { e.preventDefault(); if (otp.length === 6 && newPasswordValid) verify.mutate() }}
         className="flex flex-col gap-4">
         {verify.isError ? <p role="alert" className="text-sm text-clay">{errorMessage(verify.error)}</p> : null}
         <OtpInput length={6} onComplete={setOtp} />
         <Field label="New password" type="password" autoComplete="new-password" required
-          value={newPassword} onChange={e => setNewPassword(e.target.value)} />
+          value={newPassword} onChange={e => setNewPassword(e.target.value)}
+          error={newPassword.length > 0 ? pwIssue ?? undefined : undefined} />
         <Field label="Confirm new password" type="password" autoComplete="new-password" required
           value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} />
         <ResendButton cooldownSeconds={60} onResend={resendPasswordChangeOtp} />

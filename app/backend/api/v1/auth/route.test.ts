@@ -29,4 +29,24 @@ describe('auth passthrough', () => {
     expect(res.headers.get('set-cookie')).toContain('user_refresh_token=r1')
     expect(await res.json()).toEqual({ accessToken: 't1' })
   })
+
+  it('preserves multiple upstream Set-Cookie headers instead of comma-folding them', async () => {
+    const upstreamHeaders = new Headers()
+    upstreamHeaders.append('set-cookie', 'user_refresh_token=; Max-Age=0; Path=/')
+    upstreamHeaders.append('set-cookie', 'user_session=; Max-Age=0; Path=/')
+    upstreamHeaders.set('content-type', 'application/json')
+    const upstream = new Response(JSON.stringify({}), { status: 200, headers: upstreamHeaders })
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(upstream)
+
+    const req = new Request('http://localhost:3000/backend/api/v1/auth/logout', { method: 'POST' })
+    const res = await POST(req, { params: Promise.resolve({ path: ['logout'] }) })
+
+    expect(res.headers.getSetCookie()).toHaveLength(2)
+    expect(res.headers.getSetCookie()).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining('user_refresh_token='),
+        expect.stringContaining('user_session='),
+      ])
+    )
+  })
 })

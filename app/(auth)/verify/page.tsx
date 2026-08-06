@@ -21,6 +21,10 @@ function VerifyForm() {
   const groupRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    if (!email) router.replace('/register')
+  }, [email, router])
+
+  useEffect(() => {
     if (error) groupRef.current?.querySelector('input')?.focus()
   }, [error, attempt])
 
@@ -34,6 +38,8 @@ function VerifyForm() {
       setAttempt(a => a + 1)
     }
   }
+
+  if (!email) return null
 
   return (
     <div className="flex flex-col gap-4">

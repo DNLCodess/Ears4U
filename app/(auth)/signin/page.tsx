@@ -17,7 +17,7 @@ function SignInForm() {
 
   function safeNext(): string {
     const next = params.get('next')
-    if (next && next.startsWith('/') && !next.startsWith('//')) return next
+    if (next && next.startsWith('/') && !next.startsWith('//') && !next.includes('\\')) return next
     return '/home'
   }
 

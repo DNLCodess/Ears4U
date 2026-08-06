@@ -19,10 +19,11 @@ export async function logout(): Promise<void> {
 export const registerUser = (p: RegisterPayload) =>
   apiFetch('/api/v1/users/register-user', { method: 'POST', body: p, auth: false })
 export async function verifyUser(email: string, otp: string): Promise<void> {
-  const r = await apiFetch<{ accessToken?: string }>('/api/v1/users/verify-user', {
+  const r = await apiFetch<{ accessToken?: string; token?: string }>('/api/v1/users/verify-user', {
     method: 'POST', body: { email, otp }, auth: false,
   })
-  if (r?.accessToken) setAccessToken(r.accessToken)
+  const token = r?.accessToken ?? r?.token
+  if (token) setAccessToken(token)
 }
 export const resendRegistrationOtp = (email: string) =>
   apiFetch(`/api/v1/users/resend-registration-otp?email=${encodeURIComponent(email)}`, { method: 'POST', auth: false })
@@ -35,22 +36,26 @@ export const resetPassword = (email: string, otp: string, newPassword: string) =
 export const recoveryInitiate = (email: string) =>
   apiFetch(`/api/v1/auth/recovery/initiate?email=${encodeURIComponent(email)}`, { method: 'POST', auth: false })
 export async function recoveryConfirm(email: string, otp: string): Promise<void> {
-  const r = await apiFetch<{ accessToken?: string }>(
+  const r = await apiFetch<{ accessToken?: string; token?: string }>(
     `/api/v1/auth/recovery/confirm?email=${encodeURIComponent(email)}&otp=${encodeURIComponent(otp)}`,
     { method: 'POST', auth: false })
-  if (r?.accessToken) setAccessToken(r.accessToken)
+  const token = r?.accessToken ?? r?.token
+  if (token) setAccessToken(token)
 }
 
 export const getDashboard = () => apiFetch<DashboardHome>('/api/v1/dashboard/home')
 export const logMood = (p: MoodLogPayload) => apiFetch<MoodEntry>('/api/v1/mood/log', { method: 'POST', body: p })
 export const getInsights = () => apiFetch<Insights>('/api/v1/mood/analytics')
-export const getStreak = () => apiFetch<number>('/api/v1/mood/streak')
+export async function getStreak(): Promise<number> {
+  const r = await apiFetch<number | { streak?: number }>('/api/v1/mood/streak')
+  return typeof r === 'number' ? r : r?.streak ?? 0
+}
 export const getJournalHistory = () => apiFetch<JournalEntry[]>('/api/v1/journal/history')
 export const getJournal = (id: number) => apiFetch<JournalEntry>(`/api/v1/journal/retrieve/${id}`)
 export const createJournal = (p: JournalPayload) => apiFetch<JournalEntry>('/api/v1/journal/entry', { method: 'POST', body: p })
 export const updateJournal = (id: number, p: JournalPayload) => apiFetch<JournalEntry>(`/api/v1/journal/update-journal/${id}`, { method: 'PUT', body: p })
 export const deleteJournal = (id: number) => apiFetch(`/api/v1/journal/delete-journal/${id}`, { method: 'DELETE' })
-export const sendChat = (message: string) => apiFetch<{ response?: string; message?: string }>('/api/v1/users/chat', { method: 'POST', body: { message } })
+export const sendChat = (message: string) => apiFetch<{ reply?: string; response?: string; message?: string }>('/api/v1/users/chat', { method: 'POST', body: { message } })
 export const getChatHistory = () => apiFetch<ChatMessage[]>('/api/v1/users/chat/history')
 export const getNotifications = () => apiFetch<NotificationItem[]>('/api/v1/users/notifications')
 export const getUnreadCount = () => apiFetch<{ count?: number; unreadCount?: number }>('/api/v1/users/notifications/unread-count')

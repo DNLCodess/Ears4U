@@ -19,9 +19,10 @@ async function forward(req: Request, ctx: Ctx) {
   })
 
   const resHeaders = new Headers()
-  for (const h of ["content-type", "set-cookie"]) {
-    const v = upstream.headers.get(h)
-    if (v) resHeaders.set(h, v)
+  const contentType = upstream.headers.get("content-type")
+  if (contentType) resHeaders.set("content-type", contentType)
+  for (const cookie of upstream.headers.getSetCookie()) {
+    resHeaders.append("set-cookie", cookie)
   }
   return new Response(upstream.body, { status: upstream.status, headers: resHeaders })
 }

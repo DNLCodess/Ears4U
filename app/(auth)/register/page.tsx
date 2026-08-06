@@ -7,6 +7,7 @@ import { registerUser } from '@/lib/api/endpoints'
 import { ApiError } from '@/lib/api/errors'
 import { Button } from '@/components/ui/button'
 import { Field } from '@/components/ui/field'
+import { passwordIssue } from '@/lib/password'
 import type { RegisterPayload } from '@/lib/api/types'
 
 const COUNTRIES = [
@@ -83,7 +84,8 @@ export default function RegisterPage() {
   const step1Valid = draft.name.trim().length > 0 && EMAIL_RE.test(draft.email)
   const step2Valid = !!draft.gender && !!draft.country && !!draft.dateOfBirth
     && !!draft.maritalStatus && !!draft.employmentStatus
-  const step3Valid = draft.password.length >= 8 && draft.password === draft.confirmPassword
+  const pwIssue = passwordIssue(draft.password)
+  const step3Valid = !pwIssue && draft.password === draft.confirmPassword
 
   function goToStep2(e: React.FormEvent) {
     e.preventDefault()
@@ -159,7 +161,8 @@ export default function RegisterPage() {
         {step === 3 ? (
           <form onSubmit={submit} className="flex flex-col gap-4">
             <Field label="Password" type="password" autoComplete="new-password" required
-              value={draft.password} onChange={e => set('password', e.target.value)} />
+              value={draft.password} onChange={e => set('password', e.target.value)}
+              error={draft.password.length > 0 ? pwIssue ?? undefined : undefined} />
             <Field label="Confirm password" type="password" autoComplete="new-password" required
               value={draft.confirmPassword} onChange={e => set('confirmPassword', e.target.value)}
               error={error ?? undefined} />

@@ -113,7 +113,7 @@ export default function ChatPage() {
     mutationFn: ({ text }: { id: string; text: string }) => sendChat(text),
     onSuccess: (data, variables) => {
       setPending(p => p.filter(m => m.id !== variables.id))
-      const reply = data && (data.response ?? data.message)
+      const reply = data && (data.reply ?? data.response ?? data.message)
       if (typeof reply === 'string' && reply.length > 0) {
         queryClient.setQueryData<ChatMessage[]>(qk.chat, old => [
           ...(old ?? []),

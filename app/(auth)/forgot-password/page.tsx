@@ -6,6 +6,7 @@ import { forgotPassword, resendForgottenPasswordOtp, resetPassword } from '@/lib
 import { ApiError } from '@/lib/api/errors'
 import { Button } from '@/components/ui/button'
 import { Field } from '@/components/ui/field'
+import { passwordIssue } from '@/lib/password'
 import { OtpInput, ResendButton } from '@/components/otp-input'
 
 type Stage = 'email' | 'otp' | 'password' | 'done'
@@ -20,7 +21,8 @@ export default function ForgotPasswordPage() {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
-  const passwordValid = password.length >= 8 && password === confirmPassword
+  const pwIssue = passwordIssue(password)
+  const passwordValid = !pwIssue && password === confirmPassword
 
   async function submitEmail(e: React.FormEvent) {
     e.preventDefault()
@@ -89,7 +91,8 @@ export default function ForgotPasswordPage() {
       {stage === 'password' ? (
         <form onSubmit={submitPassword} className="flex flex-col gap-4">
           <Field label="New password" type="password" autoComplete="new-password" required
-            value={password} onChange={e => setPassword(e.target.value)} />
+            value={password} onChange={e => setPassword(e.target.value)}
+            error={password.length > 0 ? pwIssue ?? undefined : undefined} />
           <Field label="Confirm new password" type="password" autoComplete="new-password" required
             value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
             error={error ?? undefined} />

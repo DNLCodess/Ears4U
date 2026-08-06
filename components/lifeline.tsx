@@ -33,17 +33,25 @@ function ResourceRow({ resource }: { resource: EmergencyResource }) {
     )
   }
   if (resource.resourceType === 'WEBSITE') {
+    if (/^https?:\/\//i.test(resource.contactInfo)) {
+      return (
+        <a
+          href={resource.contactInfo}
+          target="_blank"
+          rel="noopener"
+          className="block rounded-2xl bg-card px-4 py-3.5
+            focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fir"
+        >
+          <span className="block text-[15px] font-medium">{resource.name}</span>
+          <span className="block text-[13px] underline opacity-75">{resource.contactInfo}</span>
+        </a>
+      )
+    }
     return (
-      <a
-        href={resource.contactInfo}
-        target="_blank"
-        rel="noopener"
-        className="block rounded-2xl bg-card px-4 py-3.5
-          focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fir"
-      >
+      <div className="rounded-2xl bg-card px-4 py-3.5">
         <span className="block text-[15px] font-medium">{resource.name}</span>
-        <span className="block text-[13px] underline opacity-75">{resource.contactInfo}</span>
-      </a>
+        <span className="block select-text text-[13px] opacity-75">{resource.contactInfo}</span>
+      </div>
     )
   }
   return (

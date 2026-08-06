@@ -95,3 +95,11 @@ That keeps the code out of access logs while the rest of the request (method, pa
 Option 2 is the smaller change and would also keep the streak and the "watered today" state in agreement. Option 1 helps everywhere else that we show a date or time.
 
 While we are on dates: the points in `GET /api/v1/mood/analytics` come back as `"Aug 6"` (from `DateTimeFormatter.ofPattern("MMM d")` in `UserInsightsService`). There is no year, so we have to guess it from the reader's calendar, and the format is English only. Sending the plain date, `"2026-08-06"`, would let us format it for display ourselves, in the user's own language.
+
+## 8. Notifications endpoint only returns unread items
+
+**What we saw:** `GET /api/v1/users/notifications` only returns notifications that have not been marked read yet. As soon as something is marked read, it drops out of the list entirely.
+
+**Why it matters:** We would like to show people a history of their notifications, not just the ones still waiting for attention. Right now, once someone reads a notification, there is no way for the app to show it again, so it just looks like it vanished.
+
+**What would help:** A full list of notifications (read and unread), or a `?filter=` option (for example `?filter=unread` vs `?filter=all`) so we can choose which view to show. Either would let the app keep a history instead of losing notifications the moment they are read.

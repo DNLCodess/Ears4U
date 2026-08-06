@@ -29,4 +29,20 @@ describe('endpoints', () => {
       primaryMood: 'Restless', moodIntensity: 7, stressLevel: 6, energyLevel: 4,
     })
   })
+
+  it('getStreak unwraps the {"streak": n} shape the backend actually returns', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ streak: 5 }), {
+        status: 200, headers: { 'content-type': 'application/json' },
+      })
+    )
+    await expect(api.getStreak()).resolves.toBe(5)
+  })
+
+  it('getStreak also accepts a bare number, in case that ever changes', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('7', { status: 200, headers: { 'content-type': 'application/json' } })
+    )
+    await expect(api.getStreak()).resolves.toBe(7)
+  })
 })
