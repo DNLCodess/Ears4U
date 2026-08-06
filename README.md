@@ -51,6 +51,15 @@ For the full design and behavior spec, see `docs/superpowers/specs/2026-08-06-ea
 
 ## Deploy on Vercel
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+This is a standard Next.js app, so Vercel builds it with zero extra config once you import the repo. The one thing you must set by hand is the environment variable:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **`API_URL`** (required): the backend base URL, for example `https://earsforyou-2.onrender.com`. Set it in the Vercel project's Settings, Environment Variables, for Production, Preview, and Development. Without it, every API call breaks: `next.config.ts` builds the proxy destination straight from this variable.
+- **`NEXT_PUBLIC_USE_MOCKS`**: leave this unset (or `false`) in every Vercel environment. It only exists for local testing against seeded in-memory data instead of the real backend; see `lib/mocks.ts`.
+
+Steps:
+
+1. Import the GitHub repo into Vercel.
+2. Add `API_URL` under Environment Variables before the first deploy (or redeploy after adding it).
+3. Deploy. Vercel picks up `npm run build` automatically.
+
+Check out the [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
