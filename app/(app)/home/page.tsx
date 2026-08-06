@@ -8,6 +8,7 @@ import type { InsightPoint, MoodEntry } from '@/lib/api/types'
 import { skyStateFor, type SkyState } from '@/lib/sky'
 import { parseInsightDate } from '@/lib/insight-dates'
 import { SkyScene, isDarkSky, greetingInitial } from '@/components/garden/sky-scene'
+import { TerrainChart } from '@/components/charts/terrain-chart'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorState } from '@/components/ui/error-state'
 
@@ -220,7 +221,8 @@ function AffirmationCard({ text }: { text: string }) {
   )
 }
 
-function WeekTeaser() {
+function WeekTeaser({ points }: { points: InsightPoint[] }) {
+  const enough = points.length >= 2
   return (
     <Link
       href="/insights"
@@ -231,10 +233,16 @@ function WeekTeaser() {
         {"This week's ground"}
         <span className="text-[11.5px] text-leaf">Insights</span>
       </span>
-      <span className="mt-3 flex h-16 items-center justify-center rounded-xl border-[1.5px] border-dashed
-        border-fir/15 text-[12.5px] opacity-55">
-        Your week takes shape here
-      </span>
+      {enough ? (
+        <span className="mt-3 block">
+          <TerrainChart points={points} mini />
+        </span>
+      ) : (
+        <span className="mt-3 flex h-16 items-center justify-center rounded-xl border-[1.5px] border-dashed
+          border-fir/15 text-[12.5px] opacity-55">
+          Your week takes shape here
+        </span>
+      )}
     </Link>
   )
 }
@@ -326,7 +334,7 @@ export default function HomePage() {
             </div>
             <AffirmationCard text={dailyAffirmation} />
           </div>
-          {insights.isSuccess ? <WeekTeaser /> : null}
+          {insights.isSuccess ? <WeekTeaser points={insights.data.weeklyTrends} /> : null}
         </div>
       </div>
     </div>
