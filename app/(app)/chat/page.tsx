@@ -213,7 +213,8 @@ export default function ChatPage() {
               <button
                 type="button"
                 onClick={() => sendMessage(m.content, m.id)}
-                className="self-end text-[13px] text-clay underline underline-offset-4
+                className="inline-flex min-h-11 items-center self-end text-[13px] text-clay underline
+                  underline-offset-4
                   focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fir"
               >
                 Not sent. Tap to retry.

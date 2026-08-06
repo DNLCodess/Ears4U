@@ -8,7 +8,6 @@ import {
   deleteAccount, getNotificationSettings, getProfile, logout, resendEmailChangeOtp,
   resendPasswordChangeOtp, updateNotificationSettings, updateProfile,
 } from '@/lib/api/endpoints'
-import { clearAccessToken } from '@/lib/api/token'
 import { qk } from '@/lib/query/keys'
 import { ApiError } from '@/lib/api/errors'
 import type { NotificationSettings, UpdateProfilePayload, UserProfile } from '@/lib/api/types'
@@ -283,8 +282,8 @@ function DeleteAccountFlow() {
 
   const del = useMutation({
     mutationFn: () => deleteAccount(),
-    onSuccess: () => {
-      clearAccessToken()
+    onSuccess: async () => {
+      await logout()
       router.replace('/signin')
     },
   })
@@ -456,7 +455,8 @@ export default function YouPage() {
         <button
           type="button"
           onClick={() => setSheet('delete')}
-          className="text-center text-sm text-fir/60 underline underline-offset-4"
+          className="inline-flex min-h-11 items-center justify-center self-center text-sm
+            text-fir/60 underline underline-offset-4"
         >
           Delete account
         </button>

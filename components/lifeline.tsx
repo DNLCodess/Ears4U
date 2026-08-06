@@ -88,7 +88,7 @@ function ResourcesBody() {
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-[15px]">Could not load resources. Retry.</p>
+      <p className="text-[15px]">Could not load resources.</p>
       <p className="text-sm opacity-70">If you are in immediate danger, call your local emergency number.</p>
       <Button type="button" variant="ghost" onClick={() => void resources.refetch()}>
         Retry
