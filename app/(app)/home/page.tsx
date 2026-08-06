@@ -6,7 +6,8 @@ import { getDashboard, getInsights, getUnreadCount } from '@/lib/api/endpoints'
 import { qk } from '@/lib/query/keys'
 import type { InsightPoint, MoodEntry } from '@/lib/api/types'
 import { skyStateFor, type SkyState } from '@/lib/sky'
-import { SkyScene, isDarkSky } from '@/components/garden/sky-scene'
+import { parseInsightDate } from '@/lib/insight-dates'
+import { SkyScene, isDarkSky, greetingInitial } from '@/components/garden/sky-scene'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorState } from '@/components/ui/error-state'
 
@@ -60,12 +61,6 @@ const onServer = () => false
 const dayKey = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
-function pointKey(raw: string) {
-  if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10)
-  const parsed = new Date(raw)
-  return Number.isNaN(parsed.getTime()) ? raw : dayKey(parsed)
-}
-
 function shiftDays(from: Date, days: number) {
   const d = new Date(from)
   d.setHours(0, 0, 0, 0)
@@ -81,7 +76,7 @@ function subLineFor(mood: MoodEntry | null, streak: number, loggedToday: boolean
   if (!mood) return 'A fresh start. Plant the first check-in.'
   if (loggedToday) return `Day ${streak} is watered. Come back tomorrow.`
   return `${sentenceCase(mood.primaryMood)} earlier, strength ${mood.moodIntensity}.`
-    + ' The garden’s still waiting on today’s water.'
+    + " The garden's still waiting on today's water."
 }
 
 function DropIcon() {
@@ -136,7 +131,14 @@ function TopBar({ dark, unread, initial }: { dark: boolean; unread: number; init
 
 function WeekDots({ points, streak, loggedToday, today }:
 { points: InsightPoint[]; streak: number; loggedToday: boolean; today: Date }) {
-  const logged = new Set(points.filter(p => p.mood > 0).map(p => pointKey(p.date)))
+  // Point dates arrive as "Aug 6", so they are rebuilt against today's calendar.
+  const logged = new Set(
+    points
+      .filter(p => p.mood > 0)
+      .map(p => parseInsightDate(p.date, today))
+      .filter((d): d is Date => d !== null)
+      .map(dayKey)
+  )
   const days = Array.from({ length: 7 }, (_, i) => shiftDays(today, i - 6))
   return (
     <div className="flex items-center gap-1.5" aria-hidden>
@@ -182,7 +184,7 @@ function AffirmationCard({ text }: { text: string }) {
       </span>
       <p className="relative font-display text-xl font-medium leading-[1.28] tracking-[-0.01em]">{text}</p>
       <div className="relative mt-3 flex items-center justify-between">
-        <span className="text-[11.5px] opacity-55">{'Today’s affirmation'}</span>
+        <span className="text-[11.5px] opacity-55">{"Today's affirmation"}</span>
         <div className="flex gap-2">
           <button
             type="button"
@@ -226,7 +228,7 @@ function WeekTeaser() {
         shadow-[0_2px_0_rgba(34,55,43,.05),0_14px_34px_rgba(34,55,43,.09)]"
     >
       <span className="flex items-baseline justify-between text-[13.5px] font-semibold">
-        {'This week’s ground'}
+        {"This week's ground"}
         <span className="text-[11.5px] text-leaf">Insights</span>
       </span>
       <span className="mt-3 flex h-16 items-center justify-center rounded-xl border-[1.5px] border-dashed
@@ -272,9 +274,13 @@ export default function HomePage() {
   const { greeting, dailyAffirmation, currentStreak, latestMood } = dashboard.data
   const sky: SkyState = skyStateFor(now.getHours())
   const dark = isDarkSky(sky)
-  const loggedToday = latestMood ? pointKey(latestMood.createdAt) === dayKey(now) : false
+  // createdAt is a zone-less Java LocalDateTime, so it carries the server's idea
+  // of the clock. Comparing it to the device's calendar day is the best we can do
+  // and can be off near midnight or for users far from the server's timezone.
+  const moodDay = latestMood ? parseInsightDate(latestMood.createdAt, now) : null
+  const loggedToday = moodDay ? dayKey(moodDay) === dayKey(now) : false
   const unreadCount = unread.data ? (unread.data.count ?? unread.data.unreadCount ?? 0) : 0
-  const initial = (greeting.trim().split(/[\s,]+/).pop() || 'You').charAt(0).toUpperCase()
+  const initial = greetingInitial(greeting)
 
   const cta = loggedToday ? undefined : (
     <Link

@@ -101,6 +101,12 @@ function splitGreeting(greeting: string) {
   }
 }
 
+/** "Good evening, Dami." gives "D": the name is the part after the comma. */
+export function greetingInitial(greeting: string): string {
+  const letter = splitGreeting(greeting).glow.match(/[\p{L}\p{N}]/u)
+  return letter ? letter[0].toUpperCase() : '?'
+}
+
 export function SkyScene({
   state, streak, latestMood, greeting, sub, cta,
 }: {

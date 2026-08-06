@@ -80,3 +80,18 @@ To build and test the screens (dashboard, journal, chat) we need to log in. Regi
 ```
 
 That keeps the code out of access logs while the rest of the request (method, path, auth) can stay the same.
+
+## 7. Timestamps come back without timezone information
+
+**What we saw:** `latestMood.createdAt` on `GET /api/v1/dashboard/home` looks like `2026-08-06T09:12:00`. There is no `Z` and no `+01:00` at the end, so we cannot tell which timezone that time belongs to. It is a Java `LocalDateTime`, which means it carries the server's clock and nothing else.
+
+**Why it matters:** The home screen has to answer one simple question: "did I check in today?" We answer it by comparing that timestamp to the day on the user's own device. When the server and the user are in different timezones, or when someone checks in close to midnight, that comparison can land on the wrong day. The user then sees "come back tomorrow" when they still owe today's check-in, or the other way round.
+
+**What would help:** Either of these fixes it for us:
+
+1. Send the timestamp with its offset, in ISO-8601 form, for example `2026-08-06T09:12:00+01:00`. Then the browser can convert it to the user's local day correctly. In Spring this usually means returning an `OffsetDateTime` or `Instant` instead of a `LocalDateTime`.
+2. Or add a ready-made boolean to the dashboard response, for example `"loggedToday": true`, worked out on the server where the streak is already calculated. Then the frontend does not have to do any date maths at all.
+
+Option 2 is the smaller change and would also keep the streak and the "watered today" state in agreement. Option 1 helps everywhere else that we show a date or time.
+
+While we are on dates: the points in `GET /api/v1/mood/analytics` come back as `"Aug 6"` (from `DateTimeFormatter.ofPattern("MMM d")` in `UserInsightsService`). There is no year, so we have to guess it from the reader's calendar, and the format is English only. Sending the plain date, `"2026-08-06"`, would let us format it for display ourselves, in the user's own language.
