@@ -15,7 +15,9 @@ export function Button({ variant = 'primary', busy, className = '', children, ..
       {...rest}
       disabled={rest.disabled || busy}
       className={`font-display font-semibold rounded-2xl px-5 py-3.5 text-base transition
-        active:scale-[.98] disabled:opacity-60 disabled:pointer-events-none ${styles[variant]} ${className}`}
+        active:scale-[.98] disabled:opacity-60 disabled:pointer-events-none
+        focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fir
+        ${styles[variant]} ${className}`}
     >
       {busy ? 'One moment' : children}
     </button>

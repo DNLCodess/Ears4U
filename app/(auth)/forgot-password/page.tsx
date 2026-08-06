@@ -67,7 +67,11 @@ export default function ForgotPasswordPage() {
           <Field label="Email" type="email" autoComplete="email" required
             value={email} onChange={e => setEmail(e.target.value)} error={error ?? undefined} />
           <Button type="submit" busy={busy}>Send code</Button>
-          <Link className="text-sm underline underline-offset-4 opacity-80 self-start" href="/recovery">
+          <Link
+            className="text-sm underline underline-offset-4 opacity-80 self-start rounded
+              focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fir"
+            href="/recovery"
+          >
             Lost access to this email? Recover your account
           </Link>
         </form>

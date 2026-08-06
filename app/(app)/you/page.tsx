@@ -456,7 +456,8 @@ export default function YouPage() {
           type="button"
           onClick={() => setSheet('delete')}
           className="inline-flex min-h-11 items-center justify-center self-center text-sm
-            text-fir/60 underline underline-offset-4"
+            text-fir/60 underline underline-offset-4
+            focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fir"
         >
           Delete account
         </button>

@@ -25,7 +25,7 @@ function CloseButton() {
     <Link
       href="/home"
       aria-label="Close check-in"
-      className="flex h-9 w-9 items-center justify-center rounded-full bg-fir/8 text-fir
+      className="flex h-11 w-11 items-center justify-center rounded-full bg-fir/8 text-fir
         focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fir"
     >
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"
@@ -196,7 +196,8 @@ export default function CheckinPage() {
                       type="button"
                       onClick={() => setBeat(1)}
                       disabled={log.isPending}
-                      className="text-sm underline underline-offset-4 opacity-70 disabled:opacity-40"
+                      className="text-sm underline underline-offset-4 opacity-70 disabled:opacity-40
+                        focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fir"
                     >
                       Back to the word
                     </button>

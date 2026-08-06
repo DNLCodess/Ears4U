@@ -76,7 +76,8 @@ export function ResendButton({ cooldownSeconds = 60, onResend }:
         type="button"
         disabled={left > 0}
         onClick={handleClick}
-        className="text-sm underline underline-offset-4 disabled:no-underline disabled:opacity-60"
+        className="text-sm underline underline-offset-4 disabled:no-underline disabled:opacity-60
+          focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fir"
       >
         {left > 0 ? `Resend code (0:${String(left).padStart(2, '0')})` : 'Resend code'}
       </button>

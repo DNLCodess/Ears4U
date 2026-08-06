@@ -107,8 +107,9 @@ function TopBar({ dark, unread, initial }: { dark: boolean; unread: number; init
       <Link
         href="/notifications"
         aria-label={unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'}
-        className={`relative flex h-[34px] w-[34px] items-center justify-center rounded-xl backdrop-blur
-          ${dark ? 'bg-oat/12 text-oat' : 'bg-fir/8 text-fir'}`}
+        className={`relative flex h-11 w-11 items-center justify-center rounded-xl backdrop-blur
+          focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2
+          ${dark ? 'bg-oat/12 text-oat focus-visible:outline-marigold' : 'bg-fir/8 text-fir focus-visible:outline-fir'}`}
       >
         <BellIcon />
         {unread > 0 ? (
@@ -121,8 +122,9 @@ function TopBar({ dark, unread, initial }: { dark: boolean; unread: number; init
       <Link
         href="/you"
         aria-label="Your profile"
-        className={`flex h-[34px] w-[34px] items-center justify-center rounded-full text-[13px] font-semibold
-          ${dark ? 'bg-marigold text-fir-deep' : 'bg-leaf text-oat'}`}
+        className={`flex h-11 w-11 items-center justify-center rounded-full text-[13px] font-semibold
+          focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2
+          ${dark ? 'bg-marigold text-fir-deep focus-visible:outline-oat' : 'bg-leaf text-oat focus-visible:outline-fir'}`}
       >
         {initial}
       </Link>
@@ -192,7 +194,8 @@ function AffirmationCard({ text }: { text: string }) {
             onClick={toggleSave}
             aria-pressed={saved}
             aria-label={saved ? 'Remove from saved affirmations' : 'Save this affirmation'}
-            className={`flex h-[30px] w-[30px] items-center justify-center rounded-[10px] border-[1.5px] transition
+            className={`flex h-11 w-11 items-center justify-center rounded-[10px] border-[1.5px] transition
+              focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fir
               ${saved ? 'border-leaf bg-leaf/10 text-leaf' : 'border-fir/16 text-fir'}`}
           >
             <svg viewBox="0 0 24 24" fill={saved ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.8"
@@ -205,7 +208,8 @@ function AffirmationCard({ text }: { text: string }) {
               type="button"
               onClick={share}
               aria-label="Share this affirmation"
-              className="flex h-[30px] w-[30px] items-center justify-center rounded-[10px] border-[1.5px] border-fir/16 text-fir"
+              className="flex h-11 w-11 items-center justify-center rounded-[10px] border-[1.5px] border-fir/16 text-fir
+                focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fir"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
                 strokeLinecap="round" strokeLinejoin="round" className="h-[15px] w-[15px]" aria-hidden>
@@ -227,7 +231,8 @@ function WeekTeaser({ points }: { points: InsightPoint[] }) {
     <Link
       href="/insights"
       className="block rounded-[22px] bg-card px-5 pb-3 pt-4
-        shadow-[0_2px_0_rgba(34,55,43,.05),0_14px_34px_rgba(34,55,43,.09)]"
+        shadow-[0_2px_0_rgba(34,55,43,.05),0_14px_34px_rgba(34,55,43,.09)]
+        focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fir"
     >
       <span className="flex items-baseline justify-between text-[13.5px] font-semibold">
         {"This week's ground"}
@@ -294,7 +299,8 @@ export default function HomePage() {
     <Link
       href="/checkin"
       className={`mt-3.5 inline-flex items-center gap-[7px] rounded-full py-[9px] pl-3 pr-4 text-[13px] font-semibold
-        shadow-[0_8px_20px_rgba(0,0,0,.25)] ${dark ? 'bg-marigold text-fir-deep' : 'bg-fir text-oat'}`}
+        shadow-[0_8px_20px_rgba(0,0,0,.25)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2
+        ${dark ? 'bg-marigold text-fir-deep focus-visible:outline-oat' : 'bg-fir text-oat focus-visible:outline-fir'}`}
     >
       <DropIcon />
       Water day {currentStreak + 1}

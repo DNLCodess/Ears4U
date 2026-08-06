@@ -154,7 +154,8 @@ export default function JournalEditorPage({ params }: { params: Promise<{ id: st
               <button
                 type="button"
                 onClick={() => setConfirmSheet('delete')}
-                className="text-sm text-fir/60 underline underline-offset-4"
+                className="text-sm text-fir/60 underline underline-offset-4 rounded
+                  focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fir"
               >
                 Delete entry
               </button>

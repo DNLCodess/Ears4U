@@ -45,7 +45,11 @@ function SignInForm() {
         value={password} onChange={e => setPassword(e.target.value)} error={error ?? undefined} />
       <Button type="submit" busy={busy}>Sign in</Button>
       <Button type="button" variant="ghost" onClick={() => router.push('/register')}>Create an account</Button>
-      <Link className="text-sm underline underline-offset-4 opacity-80 self-start" href="/forgot-password">
+      <Link
+        className="text-sm underline underline-offset-4 opacity-80 self-start rounded
+          focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fir"
+        href="/forgot-password"
+      >
         Forgot password?
       </Link>
     </form>
