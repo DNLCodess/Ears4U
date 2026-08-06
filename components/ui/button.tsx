@@ -5,6 +5,7 @@ const styles = {
   primary: 'bg-gradient-to-br from-leaf-bright to-leaf text-white shadow-lg shadow-leaf/30',
   ghost: 'border-2 border-fir text-fir',
   quiet: 'text-fir underline underline-offset-4',
+  destructive: 'bg-clay text-oat shadow-lg shadow-clay/30',
 } as const
 
 export function Button({ variant = 'primary', busy, className = '', children, ...rest }:
