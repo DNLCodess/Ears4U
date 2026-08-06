@@ -1,22 +1,47 @@
 'use client'
-import { createElement, useEffect, useState, type ReactNode } from 'react'
+import { createElement, useEffect, useReducer, type ReactNode } from 'react'
 import { ping } from '@/lib/api/endpoints'
 import { Button } from '@/components/ui/button'
 
 const IDLE_MS = 12 * 60 * 1000
 const CHECK_INTERVAL_MS = 30 * 1000
 
+export type IdlePingState = { lastActive: number; idle: boolean }
+
+export type IdlePingAction =
+  | { type: 'activity'; at: number }
+  | { type: 'tick'; at: number }
+  | { type: 'stay' }
+
+// Pure state transition, exported so the "does the banner re-arm for a new
+// idle period after being dismissed once" behavior can be unit tested
+// without mocking timers. `idle` is the single source of truth for whether
+// the banner is visible: there is no separate "dismissed" flag that could
+// outlive the idle period that set it, which is what previously let one
+// Stay click permanently suppress every later idle period.
+export function idlePingReducer(state: IdlePingState, action: IdlePingAction): IdlePingState {
+  switch (action.type) {
+    case 'activity':
+      return { ...state, lastActive: action.at }
+    case 'tick':
+      return { ...state, idle: action.at - state.lastActive >= IDLE_MS }
+    case 'stay':
+      return { ...state, idle: false }
+    default:
+      return state
+  }
+}
+
 export function useIdlePing(): ReactNode | null {
-  const [lastActive, setLastActive] = useState(() => Date.now())
-  const [idle, setIdle] = useState(false)
-  const [dismissed, setDismissed] = useState(false)
+  const [state, dispatch] = useReducer(
+    idlePingReducer, undefined, (): IdlePingState => ({ lastActive: Date.now(), idle: false })
+  )
 
   useEffect(() => {
     // pointerdown also fires for the Stay button itself, so clicking it
-    // already resets lastActive here before the click handler below dismisses.
+    // already reports fresh activity before the "stay" dispatch below runs.
     function markActive() {
-      setLastActive(Date.now())
-      setDismissed(false)
+      dispatch({ type: 'activity', at: Date.now() })
     }
     window.addEventListener('pointerdown', markActive)
     window.addEventListener('keydown', markActive)
@@ -29,12 +54,12 @@ export function useIdlePing(): ReactNode | null {
   useEffect(() => {
     const t = setInterval(() => {
       if (document.visibilityState !== 'visible') return
-      setIdle(Date.now() - lastActive >= IDLE_MS)
+      dispatch({ type: 'tick', at: Date.now() })
     }, CHECK_INTERVAL_MS)
     return () => clearInterval(t)
-  }, [lastActive])
+  }, [])
 
-  if (!idle || dismissed) return null
+  if (!state.idle) return null
 
   return createElement(
     'div',
@@ -48,8 +73,7 @@ export function useIdlePing(): ReactNode | null {
       variant: 'ghost',
       className: 'shrink-0 px-3 py-2 text-sm',
       onClick: () => {
-        setIdle(false)
-        setDismissed(true)
+        dispatch({ type: 'stay' })
         ping().catch(() => undefined)
       },
     }, 'Stay')

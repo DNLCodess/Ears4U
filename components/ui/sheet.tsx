@@ -8,16 +8,28 @@ export function Sheet({ open, onClose, title, children }: {
   children: ReactNode
 }) {
   const panelRef = useRef<HTMLDivElement>(null)
+  const onCloseRef = useRef(onClose)
+  useEffect(() => {
+    onCloseRef.current = onClose
+  })
 
+  // Focus the panel only on the open transition. Depending on `onClose` here
+  // would re-run this on every render where the caller passes an inline
+  // onClose (a new function identity each time), stealing focus back from
+  // any input inside the sheet the user is typing into.
   useEffect(() => {
     if (!open) return
     panelRef.current?.focus()
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return
     function handleKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') onCloseRef.current()
     }
     document.addEventListener('keydown', handleKey)
     return () => document.removeEventListener('keydown', handleKey)
-  }, [open, onClose])
+  }, [open])
 
   if (!open) return null
 
