@@ -54,12 +54,14 @@ function Row({ entry }: { entry: JournalEntry }) {
 
 function JournalSkeleton() {
   return (
-    <div className="space-y-3 px-5 py-6 lg:px-6">
-      {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} className="rounded-2xl bg-card px-5 py-4">
-          <Skeleton lines={2} />
-        </div>
-      ))}
+    <div className="px-5 py-6 lg:px-6">
+      <div className="mx-auto max-w-3xl space-y-3">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="rounded-2xl bg-card px-5 py-4">
+            <Skeleton lines={2} />
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
@@ -71,7 +73,9 @@ export default function JournalPage() {
   if (journal.isError) {
     return (
       <div className="px-5 py-10 lg:px-6">
-        <ErrorState error={journal.error} retry={() => void journal.refetch()} />
+        <div className="mx-auto max-w-3xl">
+          <ErrorState error={journal.error} retry={() => void journal.refetch()} />
+        </div>
       </div>
     )
   }
@@ -92,37 +96,39 @@ export default function JournalPage() {
 
   return (
     <div className="px-5 pb-10 pt-6 lg:px-6">
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="font-display text-[28px] font-semibold leading-tight tracking-[-0.02em]">Journal</h1>
-        {sorted.length > 0 ? (
-          <Button type="button" onClick={() => router.push('/journal/new')}>Write something</Button>
-        ) : null}
-      </div>
+      <div className="mx-auto max-w-3xl">
+        <div className="flex items-center justify-between gap-4">
+          <h1 className="font-display text-[28px] font-semibold leading-tight tracking-[-0.02em]">Journal</h1>
+          {sorted.length > 0 ? (
+            <Button type="button" onClick={() => router.push('/journal/new')}>Write something</Button>
+          ) : null}
+        </div>
 
-      {sorted.length === 0 ? (
-        <div className="mt-6">
-          <EmptyState
-            title="Nothing planted yet."
-            body="Write the first thing that comes. No structure needed."
-            action={
-              <Button type="button" onClick={() => router.push('/journal/new')} className="mt-2">
-                Write something
-              </Button>
-            }
-          />
-        </div>
-      ) : (
-        <div className="mt-6 max-w-3xl lg:columns-2 lg:gap-5">
-          {groups.map(group => (
-            <div key={`${group.label}-${group.entries[0]?.journalId}`} className="mb-2">
-              <p className="mb-2 text-[12.5px] font-semibold opacity-55">{group.label}</p>
-              {group.entries.map(entry => (
-                <Row key={entry.journalId} entry={entry} />
-              ))}
-            </div>
-          ))}
-        </div>
-      )}
+        {sorted.length === 0 ? (
+          <div className="mt-6">
+            <EmptyState
+              title="Nothing planted yet."
+              body="Write the first thing that comes. No structure needed."
+              action={
+                <Button type="button" onClick={() => router.push('/journal/new')} className="mt-2">
+                  Write something
+                </Button>
+              }
+            />
+          </div>
+        ) : (
+          <div className="mt-6 lg:columns-2 lg:gap-5">
+            {groups.map(group => (
+              <div key={`${group.label}-${group.entries[0]?.journalId}`} className="mb-2">
+                <p className="mb-2 text-[12.5px] font-semibold opacity-55">{group.label}</p>
+                {group.entries.map(entry => (
+                  <Row key={entry.journalId} entry={entry} />
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

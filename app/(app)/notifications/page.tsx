@@ -35,7 +35,10 @@ function Row({ n, now, onTap }: { n: NotificationItem; now: Date; onTap: (n: Not
       </span>
       <span className="min-w-0 flex-1">
         <span className="flex items-baseline justify-between gap-3">
-          <span className="text-[15px] font-semibold">{n.title}</span>
+          <span className="text-[15px] font-semibold">
+            {!n.read ? <span className="sr-only">Unread. </span> : null}
+            {n.title}
+          </span>
           <span className="flex-none text-[11.5px] opacity-55">{relativeTime(n.createdAt, now)}</span>
         </span>
         <span className="mt-0.5 block text-[13.5px] opacity-75">{n.message}</span>
