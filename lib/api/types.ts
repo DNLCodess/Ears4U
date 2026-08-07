@@ -9,7 +9,7 @@ export interface MoodEntry {
 }
 export interface DashboardHome {
   greeting: string; dailyAffirmation: string; currentStreak: number;
-  latestMood: MoodEntry | null;
+  loggedToday: boolean; latestMood: MoodEntry | null;
 }
 export interface MoodLogPayload {
   primaryMood: string; moodIntensity: number; stressLevel: number; energyLevel: number;

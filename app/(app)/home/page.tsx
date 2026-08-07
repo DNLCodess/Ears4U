@@ -287,11 +287,11 @@ export default function HomePage() {
   const { greeting, dailyAffirmation, currentStreak, latestMood } = dashboard.data
   const sky: SkyState = skyStateFor(now.getHours())
   const dark = isDarkSky(sky)
-  // createdAt is a zone-less Java LocalDateTime, so it carries the server's idea
-  // of the clock. Comparing it to the device's calendar day is the best we can do
-  // and can be off near midnight or for users far from the server's timezone.
+  // The server computes this itself now (see docs/BACKEND-NOTES.md item 7), using
+  // the user's registered country rather than guessing from a zone-less timestamp.
+  // The old client-side comparison stays only as a fallback for older API builds.
   const moodDay = latestMood ? parseInsightDate(latestMood.createdAt, now) : null
-  const loggedToday = moodDay ? dayKey(moodDay) === dayKey(now) : false
+  const loggedToday = dashboard.data.loggedToday ?? (moodDay ? dayKey(moodDay) === dayKey(now) : false)
   const unreadCount = unread.data ? (unread.data.count ?? unread.data.unreadCount ?? 0) : 0
   const initial = greetingInitial(greeting)
 

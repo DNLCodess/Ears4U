@@ -45,4 +45,34 @@ describe('endpoints', () => {
     )
     await expect(api.getStreak()).resolves.toBe(7)
   })
+
+  // These five send an OTP-adjacent email/otp to the backend. The live server
+  // now requires them as a JSON body: sending them as a query string instead
+  // silently 500s (confirmed against the deployed backend), so this guards
+  // against ever regressing to the old ?email=...&otp=... shape.
+  it('sends recovery and OTP-resend endpoints as a JSON body, not a query string', async () => {
+    const spy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 200 }))
+
+    await api.resendRegistrationOtp('a@b.c')
+    await api.forgotPassword('a@b.c')
+    await api.resendForgottenPasswordOtp('a@b.c')
+    await api.recoveryInitiate('a@b.c')
+
+    for (const [url, init] of spy.mock.calls) {
+      expect(url).not.toContain('?')
+      expect(JSON.parse(init!.body as string)).toEqual({ email: 'a@b.c' })
+    }
+  })
+
+  it('sends recoveryConfirm email and otp as a JSON body, not a query string', async () => {
+    const spy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ accessToken: 'tok2' }), {
+        status: 200, headers: { 'content-type': 'application/json' },
+      })
+    )
+    await api.recoveryConfirm('a@b.c', '123456')
+    const [url, init] = spy.mock.calls[0]!
+    expect(url).toBe('/backend/api/v1/auth/recovery/confirm')
+    expect(JSON.parse(init!.body as string)).toEqual({ email: 'a@b.c', otp: '123456' })
+  })
 })

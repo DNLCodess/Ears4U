@@ -26,19 +26,19 @@ export async function verifyUser(email: string, otp: string): Promise<void> {
   if (token) setAccessToken(token)
 }
 export const resendRegistrationOtp = (email: string) =>
-  apiFetch(`/api/v1/users/resend-registration-otp?email=${encodeURIComponent(email)}`, { method: 'POST', auth: false })
+  apiFetch('/api/v1/users/resend-registration-otp', { method: 'POST', body: { email }, auth: false })
 export const forgotPassword = (email: string) =>
-  apiFetch(`/api/v1/auth/forgot-password?email=${encodeURIComponent(email)}`, { method: 'POST', auth: false })
+  apiFetch('/api/v1/auth/forgot-password', { method: 'POST', body: { email }, auth: false })
 export const resendForgottenPasswordOtp = (email: string) =>
-  apiFetch(`/api/v1/auth/resend-forgotten-password-otp?email=${encodeURIComponent(email)}`, { method: 'POST', auth: false })
+  apiFetch('/api/v1/auth/resend-forgotten-password-otp', { method: 'POST', body: { email }, auth: false })
 export const resetPassword = (email: string, otp: string, newPassword: string) =>
   apiFetch('/api/v1/auth/reset-password', { method: 'POST', body: { email, otp, newPassword }, auth: false })
 export const recoveryInitiate = (email: string) =>
-  apiFetch(`/api/v1/auth/recovery/initiate?email=${encodeURIComponent(email)}`, { method: 'POST', auth: false })
+  apiFetch('/api/v1/auth/recovery/initiate', { method: 'POST', body: { email }, auth: false })
 export async function recoveryConfirm(email: string, otp: string): Promise<void> {
   const r = await apiFetch<{ accessToken?: string; token?: string }>(
-    `/api/v1/auth/recovery/confirm?email=${encodeURIComponent(email)}&otp=${encodeURIComponent(otp)}`,
-    { method: 'POST', auth: false })
+    '/api/v1/auth/recovery/confirm',
+    { method: 'POST', body: { email, otp }, auth: false })
   const token = r?.accessToken ?? r?.token
   if (token) setAccessToken(token)
 }

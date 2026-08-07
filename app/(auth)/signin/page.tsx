@@ -28,8 +28,11 @@ function SignInForm() {
       await login(email, password)
       router.replace(safeNext())
     } catch (err) {
-      setError(err instanceof ApiError && err.status === 403 && !err.coldStart
-        ? 'Wrong email or password.' : err instanceof ApiError ? err.friendly : 'Something went wrong. Try again.')
+      // The backend now always returns a real message body (see
+      // docs/BACKEND-NOTES.md), so err.friendly already carries the right
+      // sentence, whether that's "Incorrect email or password." or a
+      // cold-start notice, without us guessing from the status code.
+      setError(err instanceof ApiError ? err.friendly : 'Something went wrong. Try again.')
       setBusy(false)
     }
   }

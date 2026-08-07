@@ -1,102 +1,56 @@
 # Backend Notes from the Frontend Team
 
-Hi! This file collects small things we noticed while connecting the frontend to the API. Nothing here is blocking us right now. Each item says what we saw, why it matters, and what would help. If anything is unclear, just ask.
+Hi! This file collects small things we noticed while connecting the frontend to the API. Each item says what we saw, why it matters, and what would help. If anything is unclear, just ask.
 
-## 1. Error responses have no message in the body
+**Update:** the backend team replied with a full round of fixes. Items 1, 2, 4, 5, 6, and 7 below are resolved and confirmed working live against the deployed server. Item 3 is not needed yet (we do not call the API directly from the browser), and item 8 is still open. Kept the original notes below each item for context.
+
+## 1. Error responses have no message in the body — resolved
 
 **What we saw:** When a request fails (for example, logging in with a wrong password), the API returns status `403` with a completely empty body.
 
-**Why it matters:** The app wants to show people a friendly message like "Wrong email or password." With an empty response, we cannot tell the difference between "wrong password", "account suspended", or "something crashed". They all look the same to us.
+**Confirmed fixed:** a `GlobalExceptionHandler` now returns `{ "message": "..." }` on every error, with real status codes: `400` validation, `401` invalid credentials or expired token, `403` valid token but wrong role, `429` rate limited. Confirmed live: a wrong password now returns `401` with `{"message":"Incorrect email or password."}`.
 
-**What would help:** Return a small JSON body with every error, always in the same shape. For example:
+One correction worth recording: a request with a **missing** access token (no `Authorization` header at all) comes back as `403`, not `401`, on this deployment. That is Spring Security's normal behavior for an unauthenticated request hitting a secured route rather than something to fix, and our frontend already treats both `401` and `403` as "try a token refresh," so it does not affect us. Just flagging it in case a future client assumes `401` for that case specifically.
 
-```json
-{ "message": "Wrong email or password" }
-```
+## 2. A public "are you awake?" endpoint — resolved
 
-Also, using the usual status codes helps us react correctly:
+**What we saw:** The server sleeps when nobody uses it (Render free plan). The first request after a quiet period can take 60 seconds or more. `GET /actuator/health` used to return `403`.
 
-- `400` = the request data was bad (for example, missing a field)
-- `401` = wrong login details, or the token expired
-- `403` = logged in, but not allowed to do this
-- `404` = thing not found
+**Confirmed fixed:** `GET /actuator/health` and `GET /` are both public now and return `200` (`{"status":"UP",...}` and `{"status":"online",...}`). The frontend pings `/actuator/health` on the sign-in screen to show a "Connecting..." message while the server wakes up.
 
-Right now almost everything comes back as `403`, so the app cannot tell what actually went wrong.
+## 3. Add our frontend URLs to the allowed origins list — not needed yet
 
-## 2. A public "are you awake?" endpoint
+We still route every API call through our own Next.js server rather than calling the API straight from the browser, so CORS does not affect us either way. Good to know `CorsConfig` now trusts `http://localhost:3000` and reads production origins from `APP_FRONTEND_URLS` on Render, in case that changes later.
 
-**What we saw:** The server sleeps when nobody uses it (that is a Render free plan thing, not your fault). The first request after a quiet period can take 60 seconds or more. We tried `GET /actuator/health` to check if the server is awake, but it returns `403`.
+## 4. Cookie settings for the refresh token — resolved
 
-**Why it matters:** While the server wakes up, we want to show people a nice "Connecting..." screen instead of a frozen page. For that we need one tiny endpoint we can call without logging in.
-
-**What would help:** Make one endpoint public (no login needed) that just answers "I am alive". The easiest way in Spring Boot is to allow the health endpoint in `SecurityConfig`:
-
-```java
-.requestMatchers("/actuator/health").permitAll()
-```
-
-It only returns `{"status":"UP"}`, so it is safe to leave open.
-
-## 3. Add our frontend URLs to the allowed origins list
-
-**What we saw:** When a browser page from `http://localhost:3000` calls the API directly, the server answers `403 Invalid CORS request`. We found in `SecurityConfig.java` that allowed websites come from the `FRONTEND_URLS` environment variable on the server.
-
-**Why it matters:** For now we route all our API calls through our own Next.js server, so this does not block us. But if we ever call the API straight from the browser, the browser's address must be on that list.
-
-**What would help:** When we have our final website address (and while testing, `http://localhost:3000`), add them to the `FRONTEND_URLS` variable on Render, separated by a comma, like:
+**Confirmed fixed:** logging in against the live server now sets:
 
 ```
-FRONTEND_URLS=http://localhost:3000,https://earsforyou.app
+Set-Cookie: user_refresh_token=...; Path=/; Max-Age=604800; Secure; HttpOnly; SameSite=None
 ```
 
-## 4. Cookie settings for the refresh token
+That is every attribute we asked for, and the cookie name is unchanged, so nothing on the frontend needed to move.
 
-**What we saw:** Login sets the `user_refresh_token` cookie. We have not been able to inspect its attributes yet (see item 1, we cannot log in without a real account).
+## 5. Could you share a test account? — resolved
 
-**Why it matters:** Browsers are strict about cookies that travel between different websites. If the cookie is created without the right attributes, the browser silently throws it away and users get logged out after 15 minutes.
+A `TestAccountSeeder` now creates a standard user and an admin account on server startup, so we can skip the OTP email flow while testing the UI. Not repeating the actual email and password here since this repository is public; ask a teammate for the current credentials, or check the message the backend team sent with them.
 
-**What would help:** When creating the cookie, please make sure it has:
+## 6. OTP codes end up in the URL for some endpoints — resolved
 
-- `HttpOnly` (JavaScript cannot read it - you likely have this already)
-- `Secure` (only sent over https)
-- `SameSite=None` (allowed to travel cross-site - only needed if the frontend calls the API directly)
-- `Path=/api/v1/auth` or `/` (so it reaches the refresh endpoint)
-- No hard-coded `Domain` value (let the browser figure it out)
+**What we saw:** `/api/v1/auth/recovery/confirm` and the resend endpoints took `email` and `otp` as query string parameters.
 
-## 5. Could you share a test account?
+**Confirmed fixed:** these endpoints now take a JSON body, for example `{ "email": "...", "otp": "..." }`, the same way `/api/v1/auth/reset-password` already did. Confirmed live with a quick before/after check: calling with the old `?email=...` query string now fails with a `500`, and calling with a JSON body succeeds. The frontend has been updated to send bodies everywhere.
 
-To build and test the screens (dashboard, journal, chat) we need to log in. Registration sends an OTP to a real email, so we can do it ourselves with a personal address, but a dedicated test account (email + password) that we can all share would make things easier. There is also the admin "manual OTP" endpoint that can help if emails do not arrive.
+## 7. Timestamps come back without timezone information — resolved
 
-## 6. OTP codes end up in the URL for some endpoints
+**What we saw:** `latestMood.createdAt` had no timezone, so the frontend could not reliably answer "did I check in today?" for users far from the server's clock.
 
-**What we saw:** `/api/v1/auth/recovery/confirm` and the resend endpoints take `email` and `otp` as query string parameters instead of a request body. So a call looks like `POST /api/v1/auth/recovery/confirm?email=someone@example.com&otp=123456`.
+**Confirmed fixed:** `GET /api/v1/dashboard/home` now includes a server-computed `"loggedToday": true` boolean, worked out from the user's registered country. The frontend uses this field directly now instead of comparing timestamps itself.
 
-**Why it matters:** Query strings are easy to leak by accident. They typically get written to server access logs, proxy logs, and browser history, and they can show up in analytics tools that record full URLs. A one-time password sitting in plain text in a log file defeats a lot of the point of it being one-time and secret. We cannot fix this from the frontend since we just call the contract as it is.
+Also confirmed: `GET /api/v1/mood/analytics` now returns plain `ISO_LOCAL_DATE` strings (`"2026-08-06"`) instead of the old English-only `"Aug 6"` format, so the frontend can format dates itself.
 
-**What would help:** For these endpoints, accept `email` and `otp` in a JSON request body instead of the URL, the same way `/api/v1/auth/reset-password` already does. For example:
-
-```json
-{ "email": "someone@example.com", "otp": "123456" }
-```
-
-That keeps the code out of access logs while the rest of the request (method, path, auth) can stay the same.
-
-## 7. Timestamps come back without timezone information
-
-**What we saw:** `latestMood.createdAt` on `GET /api/v1/dashboard/home` looks like `2026-08-06T09:12:00`. There is no `Z` and no `+01:00` at the end, so we cannot tell which timezone that time belongs to. It is a Java `LocalDateTime`, which means it carries the server's clock and nothing else.
-
-**Why it matters:** The home screen has to answer one simple question: "did I check in today?" We answer it by comparing that timestamp to the day on the user's own device. When the server and the user are in different timezones, or when someone checks in close to midnight, that comparison can land on the wrong day. The user then sees "come back tomorrow" when they still owe today's check-in, or the other way round.
-
-**What would help:** Either of these fixes it for us:
-
-1. Send the timestamp with its offset, in ISO-8601 form, for example `2026-08-06T09:12:00+01:00`. Then the browser can convert it to the user's local day correctly. In Spring this usually means returning an `OffsetDateTime` or `Instant` instead of a `LocalDateTime`.
-2. Or add a ready-made boolean to the dashboard response, for example `"loggedToday": true`, worked out on the server where the streak is already calculated. Then the frontend does not have to do any date maths at all.
-
-Option 2 is the smaller change and would also keep the streak and the "watered today" state in agreement. Option 1 helps everywhere else that we show a date or time.
-
-While we are on dates: the points in `GET /api/v1/mood/analytics` come back as `"Aug 6"` (from `DateTimeFormatter.ofPattern("MMM d")` in `UserInsightsService`). There is no year, so we have to guess it from the reader's calendar, and the format is English only. Sending the plain date, `"2026-08-06"`, would let us format it for display ourselves, in the user's own language.
-
-## 8. Notifications endpoint only returns unread items
+## 8. Notifications endpoint only returns unread items — still open
 
 **What we saw:** `GET /api/v1/users/notifications` only returns notifications that have not been marked read yet. As soon as something is marked read, it drops out of the list entirely.
 

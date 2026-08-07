@@ -41,6 +41,7 @@ const moodEntries: MoodEntry[] = MOOD_CYCLE.map((m, i) => ({
 }))
 
 let currentStreak = 12
+let loggedToday = false
 
 let profile: UserProfile = {
   userId: 1,
@@ -153,6 +154,7 @@ export const mockStore = {
     greeting: greetingFor(),
     dailyAffirmation: AFFIRMATIONS[new Date().getDate() % AFFIRMATIONS.length]!,
     currentStreak,
+    loggedToday,
     latestMood: moodEntries[moodEntries.length - 1] ?? null,
   }),
 
@@ -160,6 +162,7 @@ export const mockStore = {
     const entry: MoodEntry = { id: nextMoodId++, ...p, createdAt: now() }
     moodEntries.push(entry)
     currentStreak += 1
+    loggedToday = true
     return entry
   },
 
