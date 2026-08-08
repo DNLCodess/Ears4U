@@ -12,14 +12,10 @@ import { TerrainChart } from '@/components/charts/terrain-chart'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorState } from '@/components/ui/error-state'
 
-function sentenceCase(word: string) {
-  return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-}
-
 export function subLineFor(mood: MoodEntry | null, loggedToday: boolean): string {
   if (!mood) return "This is a quiet place to say how you're doing. Nothing you share here needs to be impressive."
   if (loggedToday) return `Already checked in today, feeling ${mood.primaryMood.toLowerCase()}. Come back anytime, I'm still listening.`
-  return `Yesterday you said you were feeling ${sentenceCase(mood.primaryMood).toLowerCase()}. However today's landed, I'm here for it.`
+  return `Last time you said you were feeling ${mood.primaryMood.toLowerCase()}. However today's landed, I'm here for it.`
 }
 
 function BellIcon() {
@@ -43,7 +39,8 @@ function TalkIcon() {
 
 function TopBar({ unread, initial }: { unread: number; initial: string }) {
   return (
-    <div className="absolute inset-x-0 top-0 z-[4] flex items-center justify-end gap-2.5 px-6 pt-5 lg:px-11">
+    <div className="absolute inset-x-0 top-0 z-[4] flex items-center justify-end gap-2.5 px-6 pt-5
+      lg:mx-auto lg:max-w-[1180px] lg:px-11">
       <Link
         href="/notifications"
         aria-label={unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'}
@@ -105,11 +102,12 @@ function AffirmationCard({ text }: { text: string }) {
   )
 }
 
-function CheckinSummary({ points, streak, mood }: { points: InsightPoint[]; streak: number; mood: MoodEntry | null }) {
+function CheckinSummary({ points, mood }: { points: InsightPoint[]; mood: MoodEntry | null }) {
   const levels = points.slice(-7)
+  const timesThisWeek = points.length
   const label = mood
-    ? `You've checked in ${streak} time${streak === 1 ? '' : 's'} this week · ${mood.primaryMood.toLowerCase()}`
-    : `You've checked in ${streak} time${streak === 1 ? '' : 's'} this week`
+    ? `You've checked in ${timesThisWeek} time${timesThisWeek === 1 ? '' : 's'} this week · ${mood.primaryMood.toLowerCase()}`
+    : `You've checked in ${timesThisWeek} time${timesThisWeek === 1 ? '' : 's'} this week`
   return (
     <Link
       href="/insights"
@@ -175,7 +173,7 @@ function RecentJournal({ entries }: { entries: JournalEntry[] }) {
 function HomeSkeleton() {
   return (
     <div>
-      <div className="h-[400px] bg-gradient-to-b from-[#170F07] to-[#2A1B0C] lg:h-[300px]" />
+      <div className="h-[400px] bg-gradient-to-b from-night-warm-top to-night-warm-bottom lg:h-[300px]" />
       <div className="relative z-10 -mt-8 rounded-t-3xl bg-oat px-5 pt-7">
         <Skeleton lines={2} className="max-w-[220px]" />
         <div className="mt-8 rounded-[22px] bg-card p-5">
@@ -208,7 +206,7 @@ export default function HomePage() {
   }
   if (!dashboard.data || !mounted) return <HomeSkeleton />
 
-  const { greeting, dailyAffirmation, currentStreak, latestMood, loggedToday } = dashboard.data
+  const { greeting, dailyAffirmation, latestMood, loggedToday } = dashboard.data
   const unreadCount = unread.data ? (unread.data.count ?? unread.data.unreadCount ?? 0) : 0
   const initial = greetingInitial(greeting)
   const weeklyTrends = insights.data?.weeklyTrends ?? []
@@ -231,7 +229,7 @@ export default function HomePage() {
 
           {/* Mobile: always the quiet single-line summary, never the desktop chart card. */}
           <div className="lg:hidden">
-            <CheckinSummary points={weeklyTrends} streak={currentStreak} mood={latestMood} />
+            <CheckinSummary points={weeklyTrends} mood={latestMood} />
           </div>
 
           {/* Desktop: the richer chart card once there is enough data, otherwise the same quiet summary. */}
@@ -249,7 +247,7 @@ export default function HomePage() {
                 </div>
               </div>
             ) : (
-              <CheckinSummary points={weeklyTrends} streak={currentStreak} mood={latestMood} />
+              <CheckinSummary points={weeklyTrends} mood={latestMood} />
             )}
           </div>
 

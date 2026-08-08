@@ -15,11 +15,14 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
     <>
       {waking ? (
-        <p className="fixed inset-x-0 top-0 z-50 bg-fir px-4 py-2.5 text-center text-sm text-oat">
+        <p className="fixed inset-x-0 top-0 z-50 flex h-10 items-center justify-center bg-fir px-4
+          text-center text-sm text-oat">
           Connecting. The server is waking up, this can take about a minute.
         </p>
       ) : null}
-      {children}
+      {/* When the banner above is showing, push content down by its exact height (h-10) so it
+          never covers CompactHero's absolutely-positioned back button, which sits at top-5. */}
+      <div className={waking ? 'pt-10' : undefined}>{children}</div>
     </>
   )
 }

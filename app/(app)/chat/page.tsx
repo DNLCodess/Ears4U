@@ -38,7 +38,7 @@ function formatTimestamp(iso: string, now: Date): string {
 
 function ChatHeader() {
   return (
-    <div className="relative overflow-hidden rounded-b-[22px] bg-gradient-to-b from-[#170F07] to-[#2A1B0C]
+    <div className="relative overflow-hidden rounded-b-[22px] bg-gradient-to-b from-night-warm-top to-night-warm-bottom
       px-5 py-4 text-warm-cream lg:rounded-none lg:border-b lg:border-fir/10 lg:bg-none lg:bg-oat lg:text-fir lg:px-6">
       <div className="relative z-[2] flex items-center gap-2.5">
         <span className="relative flex h-9 w-9 items-center justify-center rounded-full bg-fir lg:bg-fir">
@@ -57,7 +57,7 @@ function ChatHeader() {
   )
 }
 
-function SproutIndicator({ reduceMotion }: { reduceMotion: boolean }) {
+function ListeningIndicator({ reduceMotion }: { reduceMotion: boolean }) {
   return (
     <div
       role="status"
@@ -266,7 +266,7 @@ export default function ChatPage() {
                 Not sent. Tap to retry.
               </button>
             ) : (
-              <SproutIndicator reduceMotion={reduceMotion} />
+              <ListeningIndicator reduceMotion={reduceMotion} />
             )}
           </div>
         ))}

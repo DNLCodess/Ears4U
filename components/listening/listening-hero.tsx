@@ -6,9 +6,6 @@ import { splitGreeting } from '@/lib/greeting'
 import { terrainPath } from '@/lib/charts/terrain'
 import type { InsightPoint } from '@/lib/api/types'
 
-export const HERO_HEIGHT_MOBILE_PX = 400
-export const HERO_HEIGHT_DESKTOP_PX = 300
-
 function PresenceLine() {
   return (
     <div className="flex items-center gap-[7px] text-[11.5px] font-medium text-warm-cream/75">
@@ -64,7 +61,7 @@ function MobileScene({ uid, headEl, glowEl, sub, cta }: {
             <stop offset="1" stopColor="#F2BE45" stopOpacity="0" />
           </radialGradient>
         </defs>
-        <rect width="384" height="380" fill={`url(#scrim-${uid})`} />
+        <rect width="384" height="400" fill={`url(#scrim-${uid})`} />
         <circle cx="192" cy="178" r="190" fill={`url(#glow-${uid})`} />
         <circle cx="55" cy="40" r="1.3" fill="#FBEEDD" opacity=".55" />
         <circle cx="325" cy="52" r="1" fill="#FBEEDD" opacity=".4" />
@@ -90,11 +87,12 @@ function MobileScene({ uid, headEl, glowEl, sub, cta }: {
   )
 }
 
+/** Only ever rendered by DesktopScene when weeklyTrends.length >= 2, so there are always at least two points here. */
 function DesktopWeekWave({ points }: { points: InsightPoint[] }) {
   const values = points.map(p => p.mood)
   const d = terrainPath(values, 460, 90)
-  const last = values.length ? values[values.length - 1]! : 0
-  const lastX = values.length > 1 ? 460 : 0
+  const last = values[values.length - 1]!
+  const lastX = 460
   const height = 90
   const pad = 6
   const lastY = pad + (height - pad * 2) * (1 - (last - 1) / 9)
@@ -103,7 +101,7 @@ function DesktopWeekWave({ points }: { points: InsightPoint[] }) {
       <p className="mb-2.5 text-[12px] font-semibold text-warm-cream/60">Your week, as sound</p>
       <svg viewBox="0 0 460 90" fill="none" className="block h-[90px] w-full" role="img" aria-label="Your mood over the last week, drawn as a line">
         <path d={d} stroke="#F2BE45" strokeWidth="2" strokeLinecap="round" opacity=".85" />
-        {values.length > 0 ? <circle cx={lastX} cy={lastY} r="3.5" fill="#F2BE45" /> : null}
+        <circle cx={lastX} cy={lastY} r="3.5" fill="#F2BE45" />
       </svg>
     </div>
   )
