@@ -13,13 +13,13 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
     return () => clearTimeout(t)
   }, [])
   return (
-    <main className="min-h-dvh flex flex-col justify-center px-6 py-10 max-w-md mx-auto lg:max-w-lg">
+    <>
       {waking ? (
-        <p className="mb-6 rounded-xl border-[1.5px] border-dashed border-fir/40 px-4 py-3 text-sm">
+        <p className="fixed inset-x-0 top-0 z-50 bg-fir px-4 py-2.5 text-center text-sm text-oat">
           Connecting. The server is waking up, this can take about a minute.
         </p>
       ) : null}
       {children}
-    </main>
+    </>
   )
 }
