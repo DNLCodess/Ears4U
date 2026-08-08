@@ -1,94 +1,25 @@
+// app/(app)/home/page.tsx
 'use client'
 import { useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
-import { getDashboard, getInsights, getUnreadCount } from '@/lib/api/endpoints'
+import { getDashboard, getInsights, getUnreadCount, getJournalHistory } from '@/lib/api/endpoints'
 import { qk } from '@/lib/query/keys'
-import type { InsightPoint, MoodEntry } from '@/lib/api/types'
-import { skyStateFor, type SkyState } from '@/lib/sky'
-import { parseInsightDate } from '@/lib/insight-dates'
-import { SkyScene, isDarkSky, greetingInitial } from '@/components/garden/sky-scene'
+import type { InsightPoint, JournalEntry, MoodEntry } from '@/lib/api/types'
+import { greetingInitial } from '@/lib/greeting'
+import { ListeningHero } from '@/components/listening/listening-hero'
 import { TerrainChart } from '@/components/charts/terrain-chart'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorState } from '@/components/ui/error-state'
-
-const SAVED_KEY = 'saved-affirmations'
-
-/**
- * Saved affirmations live in localStorage, so they are read through an external
- * store: the value is only available on the client and can change in any tab.
- */
-const NO_SAVED: string[] = []
-const savedListeners = new Set<() => void>()
-let cachedRaw: string | null = null
-let cachedSaved: string[] = NO_SAVED
-
-function subscribeSaved(onChange: () => void) {
-  savedListeners.add(onChange)
-  window.addEventListener('storage', onChange)
-  return () => {
-    savedListeners.delete(onChange)
-    window.removeEventListener('storage', onChange)
-  }
-}
-
-function readSaved(): string[] {
-  try {
-    const raw = window.localStorage.getItem(SAVED_KEY)
-    if (raw === cachedRaw) return cachedSaved
-    cachedRaw = raw
-    const parsed: unknown = raw ? JSON.parse(raw) : []
-    cachedSaved = Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === 'string') : NO_SAVED
-    return cachedSaved
-  } catch {
-    return NO_SAVED
-  }
-}
-
-function writeSaved(next: string[]) {
-  try {
-    window.localStorage.setItem(SAVED_KEY, JSON.stringify(next))
-  } catch {
-    // A blocked or full store just means this one stays unsaved.
-  }
-  savedListeners.forEach(l => l())
-}
-
-const noSubscribe = () => () => undefined
-const shareIsAvailable = () => typeof navigator !== 'undefined' && typeof navigator.share === 'function'
-const onClient = () => true
-const onServer = () => false
-
-const dayKey = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-
-function shiftDays(from: Date, days: number) {
-  const d = new Date(from)
-  d.setHours(0, 0, 0, 0)
-  d.setDate(d.getDate() + days)
-  return d
-}
 
 function sentenceCase(word: string) {
   return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
 }
 
-function subLineFor(mood: MoodEntry | null, streak: number, loggedToday: boolean) {
-  if (!mood) return 'A fresh start. Plant the first check-in.'
-  if (loggedToday) return `Day ${streak} is watered. Come back tomorrow.`
-  return `${sentenceCase(mood.primaryMood)} earlier, strength ${mood.moodIntensity}.`
-    + " The garden's still waiting on today's water."
-}
-
-function DropIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className="h-[15px] w-[15px]" aria-hidden>
-      <path
-        d="M12 3 C 8 8.5 6 11.5 6 14.5 a6 6 0 0 0 12 0 C 18 11.5 16 8.5 12 3 Z"
-        stroke="currentColor" strokeWidth="2" strokeLinejoin="round"
-      />
-    </svg>
-  )
+export function subLineFor(mood: MoodEntry | null, loggedToday: boolean): string {
+  if (!mood) return "This is a quiet place to say how you're doing. Nothing you share here needs to be impressive."
+  if (loggedToday) return `Already checked in today, feeling ${mood.primaryMood.toLowerCase()}. Come back anytime, I'm still listening.`
+  return `Yesterday you said you were feeling ${sentenceCase(mood.primaryMood).toLowerCase()}. However today's landed, I'm here for it.`
 }
 
 function BellIcon() {
@@ -101,15 +32,23 @@ function BellIcon() {
   )
 }
 
-function TopBar({ dark, unread, initial }: { dark: boolean; unread: number; initial: string }) {
+function TalkIcon() {
   return (
-    <div className="absolute inset-x-0 top-0 z-[4] flex items-center justify-end gap-2.5 px-6 pt-5">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+      strokeLinejoin="round" className="h-[16px] w-[16px]" aria-hidden>
+      <path d="M21 12c0 4.4-4 8-9 8-1.2 0-2.4-.2-3.4-.6L3 21l1.8-4.2C3.7 15.4 3 13.8 3 12c0-4.4 4-8 9-8s9 3.6 9 8Z" />
+    </svg>
+  )
+}
+
+function TopBar({ unread, initial }: { unread: number; initial: string }) {
+  return (
+    <div className="absolute inset-x-0 top-0 z-[4] flex items-center justify-end gap-2.5 px-6 pt-5 lg:px-11">
       <Link
         href="/notifications"
         aria-label={unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'}
-        className={`relative flex h-11 w-11 items-center justify-center rounded-xl backdrop-blur
-          focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2
-          ${dark ? 'bg-oat/12 text-oat focus-visible:outline-marigold' : 'bg-fir/8 text-fir focus-visible:outline-fir'}`}
+        className="relative flex h-11 w-11 items-center justify-center rounded-xl bg-warm-cream/12 text-warm-cream
+          backdrop-blur focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-marigold"
       >
         <BellIcon />
         {unread > 0 ? (
@@ -122,9 +61,8 @@ function TopBar({ dark, unread, initial }: { dark: boolean; unread: number; init
       <Link
         href="/you"
         aria-label="Your profile"
-        className={`flex h-11 w-11 items-center justify-center rounded-full text-[13px] font-semibold
-          focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2
-          ${dark ? 'bg-marigold text-fir-deep focus-visible:outline-oat' : 'bg-leaf text-oat focus-visible:outline-fir'}`}
+        className="flex h-11 w-11 items-center justify-center rounded-full bg-marigold text-[13px] font-semibold
+          text-fir-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-oat"
       >
         {initial}
       </Link>
@@ -132,130 +70,112 @@ function TopBar({ dark, unread, initial }: { dark: boolean; unread: number; init
   )
 }
 
-function WeekDots({ points, streak, loggedToday, today }:
-{ points: InsightPoint[]; streak: number; loggedToday: boolean; today: Date }) {
-  // Point dates arrive as "Aug 6", so they are rebuilt against today's calendar.
-  const logged = new Set(
-    points
-      .filter(p => p.mood > 0)
-      .map(p => parseInsightDate(p.date, today))
-      .filter((d): d is Date => d !== null)
-      .map(dayKey)
-  )
-  const days = Array.from({ length: 7 }, (_, i) => shiftDays(today, i - 6))
+function TalkCta() {
   return (
-    <div className="flex items-center gap-1.5" aria-hidden>
-      {days.map((day, i) => {
-        const isToday = i === 6
-        const filled = logged.has(dayKey(day)) || (isToday && loggedToday)
-        const index = streak - (6 - i)
-        const milestone = filled && index > 0 && index % 7 === 0
-        if (milestone) return <span key={i} className="h-3 w-3 rounded-full bg-marigold" />
-        if (filled) return <span key={i} className="h-[9px] w-[9px] rounded-full bg-leaf" />
-        return (
-          <span key={i}
-            className={`h-[9px] w-[9px] rounded-full ${isToday ? 'border-[1.5px] border-dashed border-fir/40' : 'bg-fir/12'}`} />
-        )
-      })}
-    </div>
+    <Link
+      href="/chat"
+      className="mt-4 inline-flex w-fit items-center gap-2 whitespace-nowrap rounded-full bg-white
+        py-3 pl-4 pr-5 text-[13.5px] font-bold text-fir-deep shadow-[0_8px_20px_rgba(0,0,0,.28)]
+        focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-oat"
+    >
+      <TalkIcon />
+      Talk to me
+    </Link>
   )
 }
 
 function AffirmationCard({ text }: { text: string }) {
-  const savedList = useSyncExternalStore(subscribeSaved, readSaved, () => NO_SAVED)
-  const canShare = useSyncExternalStore(noSubscribe, shareIsAvailable, () => false)
-  const saved = savedList.includes(text)
-
-  function toggleSave() {
-    writeSaved(saved ? savedList.filter(v => v !== text) : [...savedList, text])
-  }
-
-  function share() {
-    void navigator.share({ text }).catch(() => undefined)
-  }
-
   return (
-    <div className="relative overflow-hidden rounded-[22px] bg-card px-[22px] pb-4 pt-5
-      shadow-[0_2px_0_rgba(34,55,43,.05),0_14px_34px_rgba(34,55,43,.09)]">
-      <svg className="absolute -right-4 -top-[18px] h-[90px] w-[90px] opacity-[.07]" viewBox="0 0 100 100" fill="none" aria-hidden>
-        <path d="M50 96 C 46 70 46 40 50 8" stroke="#22372B" strokeWidth="3" />
-        <path d="M50 55 C 30 52 18 38 20 20 C 40 24 50 38 50 55 Z" fill="#22372B" />
-        <path d="M50 70 C 68 66 80 52 78 36 C 60 40 50 54 50 70 Z" fill="#22372B" />
+    <div className="relative overflow-hidden rounded-[22px] bg-card px-[26px] pb-4 pt-[22px]
+      shadow-[inset_0_1px_0_rgba(255,255,255,.6),0_1px_0_rgba(34,55,43,.05),0_14px_32px_rgba(34,55,43,.08)]
+      border border-fir/[.04]">
+      <svg className="absolute right-4 top-3.5 h-8 w-[42px] opacity-[.09]" viewBox="0 0 46 34" fill="#2E7D49" aria-hidden>
+        <path d="M0 34V21.5C0 9.6 6.5 1.9 17.5 0l2 5.5C13 7.3 9.5 12 9.5 18H19V34H0Z" />
+        <path d="M27 34V21.5C27 9.6 33.5 1.9 44.5 0l2 5.5C40 7.3 36.5 12 36.5 18H46V34H27Z" />
       </svg>
-      <span className="absolute left-4 -top-3 font-display text-[56px] font-bold leading-none text-leaf opacity-90" aria-hidden>
-        &ldquo;
-      </span>
-      <p className="relative font-display text-xl font-medium leading-[1.28] tracking-[-0.01em]">{text}</p>
-      <div className="relative mt-3 flex items-center justify-between">
-        <span className="text-[11.5px] opacity-55">{"Today's affirmation"}</span>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={toggleSave}
-            aria-pressed={saved}
-            aria-label={saved ? 'Remove from saved affirmations' : 'Save this affirmation'}
-            className={`flex h-11 w-11 items-center justify-center rounded-[10px] border-[1.5px] transition
-              focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fir
-              ${saved ? 'border-leaf bg-leaf/10 text-leaf' : 'border-fir/16 text-fir'}`}
-          >
-            <svg viewBox="0 0 24 24" fill={saved ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.8"
-              strokeLinecap="round" strokeLinejoin="round" className="h-[15px] w-[15px]" aria-hidden>
-              <path d="M19 21 12 16 5 21 V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2Z" />
-            </svg>
-          </button>
-          {canShare ? (
-            <button
-              type="button"
-              onClick={share}
-              aria-label="Share this affirmation"
-              className="flex h-11 w-11 items-center justify-center rounded-[10px] border-[1.5px] border-fir/16 text-fir
-                focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fir"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
-                strokeLinecap="round" strokeLinejoin="round" className="h-[15px] w-[15px]" aria-hidden>
-                <path d="M4 12v7a1.5 1.5 0 0 0 1.5 1.5h13A1.5 1.5 0 0 0 20 19v-7" />
-                <path d="M12 15V3.5" />
-                <path d="m7.5 8 4.5-4.5L16.5 8" />
-              </svg>
-            </button>
-          ) : null}
-        </div>
-      </div>
+      <p className="relative flex items-center gap-1.5 text-[11px] font-bold text-[#C98A1E]">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+          strokeLinejoin="round" className="h-3 w-3" aria-hidden>
+          <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z" />
+        </svg>
+        Just for you, right now
+      </p>
+      <p className="relative mt-3 font-display text-lg font-medium leading-[1.35] tracking-[-0.01em]">{text}</p>
     </div>
   )
 }
 
-function WeekTeaser({ points }: { points: InsightPoint[] }) {
-  const enough = points.length >= 2
+function CheckinSummary({ points, streak, mood }: { points: InsightPoint[]; streak: number; mood: MoodEntry | null }) {
+  const levels = points.slice(-7)
+  const label = mood
+    ? `You've checked in ${streak} time${streak === 1 ? '' : 's'} this week · ${mood.primaryMood.toLowerCase()}`
+    : `You've checked in ${streak} time${streak === 1 ? '' : 's'} this week`
   return (
     <Link
       href="/insights"
-      className="block rounded-[22px] bg-card px-5 pb-3 pt-4
-        shadow-[0_2px_0_rgba(34,55,43,.05),0_14px_34px_rgba(34,55,43,.09)]
+      className="flex items-center gap-3 rounded-[20px] bg-card px-5 py-3.5
         focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fir"
     >
-      <span className="flex items-baseline justify-between text-[13.5px] font-semibold">
-        {"This week's ground"}
-        <span className="text-[11.5px] text-leaf">Insights</span>
+      <span className="flex h-5 items-end gap-[3px]" aria-hidden>
+        {levels.length > 0
+          ? levels.map((p, i) => (
+            <span key={i} className="w-1 rounded-sm bg-leaf" style={{ height: `${4 + (p.mood / 10) * 16}px` }} />
+          ))
+          : <span className="w-1 rounded-sm bg-leaf/20" style={{ height: '4px' }} />}
       </span>
-      {enough ? (
-        <span className="mt-3 block">
-          <TerrainChart points={points} mini />
-        </span>
-      ) : (
-        <span className="mt-3 flex h-16 items-center justify-center rounded-xl border-[1.5px] border-dashed
-          border-fir/15 text-[12.5px] opacity-55">
-          Your week takes shape here
-        </span>
-      )}
+      <span className="text-[13.5px] opacity-65">{label}</span>
     </Link>
+  )
+}
+
+function RecentJournal({ entries }: { entries: JournalEntry[] }) {
+  const recent = entries.slice(0, 2)
+  if (recent.length === 0) {
+    return (
+      <div className="rounded-[20px] bg-card px-6 py-6 text-[13.5px] opacity-55">
+        Nothing written yet. Your journal will show up here.
+      </div>
+    )
+  }
+  return (
+    <div className="rounded-[20px] bg-card px-6 py-5 shadow-[inset_0_1px_0_rgba(255,255,255,.6),0_1px_0_rgba(34,55,43,.05),0_14px_32px_rgba(34,55,43,.08)]
+      border border-fir/[.04]">
+      <p className="mb-3 flex items-center gap-1.5 text-[11px] font-bold text-leaf">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+          strokeLinejoin="round" className="h-3 w-3" aria-hidden>
+          <path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3V4Z" />
+          <path d="M5 4v13a3 3 0 0 0 3 3" />
+        </svg>
+        Recent journal
+      </p>
+      <div className="flex flex-col">
+        {recent.map((e, i) => (
+          <Link
+            key={e.journalId}
+            href={`/journal/${e.journalId}`}
+            className={`relative flex items-baseline justify-between gap-3 py-3 pl-4
+              focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fir
+              ${i < recent.length - 1 ? 'border-b border-fir/[.08]' : ''}`}
+          >
+            <span className="absolute left-0 top-[15%] bottom-[15%] w-[3px] rounded-full bg-leaf/35" aria-hidden />
+            <span className="min-w-0">
+              <span className="block truncate text-[13.5px] font-semibold">{e.title || 'Untitled'}</span>
+              <span className="mt-0.5 block truncate text-xs opacity-55">{e.content}</span>
+            </span>
+            <span className="flex-none text-[11px] opacity-45">
+              {new Date(e.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+            </span>
+          </Link>
+        ))}
+      </div>
+    </div>
   )
 }
 
 function HomeSkeleton() {
   return (
     <div>
-      <div className="h-[348px] bg-gradient-to-b from-leaf/25 via-leaf/10 to-oat lg:h-[300px]" />
+      <div className="h-[400px] bg-gradient-to-b from-[#170F07] to-[#2A1B0C] lg:h-[300px]" />
       <div className="relative z-10 -mt-8 rounded-t-3xl bg-oat px-5 pt-7">
         <Skeleton lines={2} className="max-w-[220px]" />
         <div className="mt-8 rounded-[22px] bg-card p-5">
@@ -266,10 +186,15 @@ function HomeSkeleton() {
   )
 }
 
+const noSubscribe = () => () => undefined
+const onClient = () => true
+const onServer = () => false
+
 export default function HomePage() {
   const dashboard = useQuery({ queryKey: qk.dashboard, queryFn: getDashboard })
   const unread = useQuery({ queryKey: qk.unread, queryFn: getUnreadCount })
   const insights = useQuery({ queryKey: qk.insights, queryFn: getInsights })
+  const journal = useQuery({ queryKey: qk.journal, queryFn: getJournalHistory })
 
   // The device clock is only read once mounted, so server and client markup agree.
   const mounted = useSyncExternalStore(noSubscribe, onClient, onServer)
@@ -283,64 +208,52 @@ export default function HomePage() {
   }
   if (!dashboard.data || !mounted) return <HomeSkeleton />
 
-  const now = new Date()
-  const { greeting, dailyAffirmation, currentStreak, latestMood } = dashboard.data
-  const sky: SkyState = skyStateFor(now.getHours())
-  const dark = isDarkSky(sky)
-  // The server computes this itself now (see docs/BACKEND-NOTES.md item 7), using
-  // the user's registered country rather than guessing from a zone-less timestamp.
-  // The old client-side comparison stays only as a fallback for older API builds.
-  const moodDay = latestMood ? parseInsightDate(latestMood.createdAt, now) : null
-  const loggedToday = dashboard.data.loggedToday ?? (moodDay ? dayKey(moodDay) === dayKey(now) : false)
+  const { greeting, dailyAffirmation, currentStreak, latestMood, loggedToday } = dashboard.data
   const unreadCount = unread.data ? (unread.data.count ?? unread.data.unreadCount ?? 0) : 0
   const initial = greetingInitial(greeting)
-
-  const cta = loggedToday ? undefined : (
-    <Link
-      href="/checkin"
-      className={`mt-3.5 inline-flex items-center gap-[7px] rounded-full py-[9px] pl-3 pr-4 text-[13px] font-semibold
-        shadow-[0_8px_20px_rgba(0,0,0,.25)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2
-        ${dark ? 'bg-marigold text-fir-deep focus-visible:outline-oat' : 'bg-fir text-oat focus-visible:outline-fir'}`}
-    >
-      <DropIcon />
-      Water day {currentStreak + 1}
-    </Link>
-  )
+  const weeklyTrends = insights.data?.weeklyTrends ?? []
 
   return (
     <div>
       <div className="relative">
-        <SkyScene
-          state={sky}
-          streak={currentStreak}
-          latestMood={latestMood}
+        <ListeningHero
           greeting={greeting}
-          sub={subLineFor(latestMood, currentStreak, loggedToday)}
-          cta={cta}
+          sub={subLineFor(latestMood, loggedToday)}
+          cta={<TalkCta />}
+          weeklyTrends={weeklyTrends}
         />
-        <TopBar dark={dark} unread={unreadCount} initial={initial} />
+        <TopBar unread={unreadCount} initial={initial} />
       </div>
 
-      <div className="relative z-10 -mt-8 rounded-t-3xl bg-oat px-5 pb-4 pt-3 lg:px-6 lg:pt-6">
-        <div className="grid gap-3.5 lg:grid-cols-2 lg:gap-6">
-          <div className="space-y-3.5">
-            <div className="flex items-center justify-between px-1 pt-0.5">
-              <p className="font-display text-5xl font-bold leading-none tracking-[-0.02em]">
-                {currentStreak}
-                <span className="mt-1 block font-body text-[12.5px] font-medium tracking-normal opacity-60">
-                  days tended
-                </span>
-              </p>
-              <WeekDots
-                points={insights.data?.weeklyTrends ?? []}
-                streak={currentStreak}
-                loggedToday={loggedToday}
-                today={now}
-              />
-            </div>
-            <AffirmationCard text={dailyAffirmation} />
+      <div className="relative z-10 -mt-8 rounded-t-3xl bg-oat px-5 pb-6 pt-4 lg:px-11 lg:pt-8">
+        <div className="mx-auto flex max-w-[1180px] flex-col gap-3.5 lg:grid lg:grid-cols-3 lg:items-stretch lg:gap-5">
+          <AffirmationCard text={dailyAffirmation} />
+
+          {/* Mobile: always the quiet single-line summary, never the desktop chart card. */}
+          <div className="lg:hidden">
+            <CheckinSummary points={weeklyTrends} streak={currentStreak} mood={latestMood} />
           </div>
-          {insights.isSuccess ? <WeekTeaser points={insights.data.weeklyTrends} /> : null}
+
+          {/* Desktop: the richer chart card once there is enough data, otherwise the same quiet summary. */}
+          <div className="hidden lg:block">
+            {insights.isSuccess && weeklyTrends.length >= 2 ? (
+              <div className="h-full rounded-[20px] bg-card px-5 py-4
+                shadow-[inset_0_1px_0_rgba(255,255,255,.6),0_1px_0_rgba(34,55,43,.05),0_14px_32px_rgba(34,55,43,.08)]
+                border border-fir/[.04] flex flex-col">
+                <p className="flex items-baseline justify-between text-[13.5px] font-semibold text-leaf">
+                  This week
+                  <span className="text-[11.5px]">Insights</span>
+                </p>
+                <div className="mt-2.5 flex-1">
+                  <TerrainChart points={weeklyTrends} mini />
+                </div>
+              </div>
+            ) : (
+              <CheckinSummary points={weeklyTrends} streak={currentStreak} mood={latestMood} />
+            )}
+          </div>
+
+          <RecentJournal entries={journal.data ?? []} />
         </div>
       </div>
     </div>
