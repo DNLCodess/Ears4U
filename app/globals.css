@@ -24,8 +24,3 @@ body {
   color: var(--color-fir);
   font-family: var(--font-body), system-ui, sans-serif;
 }
-
-@keyframes sprout-bounce {
-  0%, 100% { transform: translateY(0); opacity: .45; }
-  50% { transform: translateY(-4px); opacity: 1; }
-}

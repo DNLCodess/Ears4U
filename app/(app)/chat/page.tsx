@@ -29,25 +29,41 @@ function formatTimestamp(iso: string, now: Date): string {
   return sameDay ? time : `${at.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${time}`
 }
 
+function ChatHeader() {
+  return (
+    <div className="relative overflow-hidden rounded-b-[22px] bg-gradient-to-b from-[#170F07] to-[#2A1B0C]
+      px-5 py-4 text-warm-cream lg:rounded-none lg:border-b lg:border-fir/10 lg:bg-none lg:bg-oat lg:text-fir lg:px-6">
+      <div className="relative z-[2] flex items-center gap-2.5">
+        <span className="relative flex h-9 w-9 items-center justify-center rounded-full bg-fir lg:bg-fir">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#F7CB5C" strokeWidth="2" strokeLinecap="round"
+            strokeLinejoin="round" className="h-4 w-4" aria-hidden>
+            <path d="M21 12c0 4.4-4 8-9 8-1.2 0-2.4-.2-3.4-.6L3 21l1.8-4.2C3.7 15.4 3 13.8 3 12c0-4.4 4-8 9-8s9 3.6 9 8Z" />
+          </svg>
+          <i className="absolute -bottom-px -right-px h-[9px] w-[9px] rounded-full border-2 border-oat bg-marigold" />
+        </span>
+        <span>
+          <span className="block font-display text-[14.5px] font-semibold">Your companion</span>
+          <span className="block text-[11px] text-marigold lg:text-leaf">Here, listening</span>
+        </span>
+      </div>
+    </div>
+  )
+}
+
 function SproutIndicator({ reduceMotion }: { reduceMotion: boolean }) {
   return (
     <div
       role="status"
       aria-label="Listening"
-      className="flex w-fit items-center gap-1.5 self-start rounded-2xl rounded-bl-sm border-[1.5px]
-        border-fir/15 bg-card px-3.5 py-3.5"
+      className="flex w-fit items-center gap-2 self-start rounded-2xl rounded-bl-sm border-[1.5px]
+        border-marigold-deep/20 bg-card px-3.5 py-3"
     >
-      {[0, 1, 2].map(i => (
-        <span
-          key={i}
-          className="h-[7px] w-[7px] rounded-full bg-leaf"
-          style={
-            reduceMotion
-              ? { opacity: 0.7 }
-              : { animation: `sprout-bounce 1.2s ${i * 0.18}s infinite ease-in-out` }
-          }
-        />
-      ))}
+      <span className="relative block h-4 w-4" aria-hidden>
+        <span className={`absolute inset-0 rounded-full border-[1.4px] border-marigold-deep opacity-50
+          ${reduceMotion ? '' : 'animate-ping'}`} />
+        <span className="absolute inset-[5px] rounded-full bg-marigold" />
+      </span>
+      <span className="text-[13px] opacity-70">Listening...</span>
     </div>
   )
 }
@@ -78,7 +94,7 @@ function Composer({ disabled, onSend }: { disabled: boolean; onSend: (text: stri
         disabled={disabled || text.trim().length === 0}
         aria-label="Send"
         className="flex h-11 w-11 flex-none items-center justify-center rounded-full bg-gradient-to-br
-          from-leaf-bright to-leaf text-white shadow-lg shadow-leaf/30 transition active:scale-[.98]
+          from-marigold to-marigold-deep text-fir-deep shadow-lg shadow-marigold-deep/30 transition active:scale-[.98]
           disabled:opacity-50 disabled:pointer-events-none
           focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fir"
       >
@@ -165,6 +181,7 @@ export default function ChatPage() {
   return (
     <div className="mx-auto flex max-w-2xl flex-col px-5 pb-4 pt-6 lg:px-6">
       <h1 className="sr-only">Chat</h1>
+      <ChatHeader />
 
       <div className="flex flex-col gap-3 pb-4">
         {isEmpty ? (
@@ -228,7 +245,7 @@ export default function ChatPage() {
         <div ref={bottomRef} />
       </div>
 
-      <div className="sticky bottom-[calc(env(safe-area-inset-bottom)+96px)] z-20 flex flex-col gap-2
+      <div className="sticky bottom-[calc(env(safe-area-inset-bottom)+108px)] z-20 flex flex-col gap-2
         bg-oat/95 pb-2 pt-1 backdrop-blur lg:sticky lg:bottom-4">
         <Lifeline />
         <Composer disabled={hasPendingSend} onSend={sendMessage} />
