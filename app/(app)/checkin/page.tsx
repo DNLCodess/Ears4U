@@ -189,7 +189,7 @@ export default function CheckinPage() {
                     Log today
                   </Button>
                   <p className="text-center text-[13.5px] opacity-65">
-                    This waters the streak. 20 seconds, no wrong answers.
+                    This keeps your streak going. 20 seconds, no wrong answers.
                   </p>
                   <div className="text-center">
                     <button

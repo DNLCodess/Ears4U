@@ -61,7 +61,7 @@ const AFFIRMATIONS = [
   "Rough days still count. You showed up, and that's the whole assignment.",
   "You don't have to feel ready. Today only asks you to begin.",
   "Whatever it is, you're allowed to name it before you fix it.",
-  'Small and steady beats loud and gone. Keep tending the garden.',
+  'Small and steady beats loud and gone. Keep showing up for yourself.',
 ]
 
 function greetingFor(): string {

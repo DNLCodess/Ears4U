@@ -113,7 +113,7 @@ function CheckinSummary({ points, streak, mood }: { points: InsightPoint[]; stre
   return (
     <Link
       href="/insights"
-      className="flex items-center gap-3 rounded-[20px] bg-card px-5 py-3.5
+      className="flex items-center gap-3 rounded-[20px] bg-card px-5 py-3.5 lg:h-full
         focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fir"
     >
       <span className="flex h-5 items-end gap-[3px]" aria-hidden>
