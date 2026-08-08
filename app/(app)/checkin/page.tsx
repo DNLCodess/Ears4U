@@ -82,8 +82,8 @@ export default function CheckinPage() {
   if (streak !== null) return <Celebration streak={streak} />
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-oat">
-      <div className="mx-auto flex min-h-full w-full max-w-lg flex-col px-6 pb-10 pt-5">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-oat lg:static lg:overflow-visible">
+      <div className="mx-auto flex min-h-full w-full max-w-lg flex-col px-6 pb-10 pt-5 lg:pt-8">
         <div className="flex justify-end">
           <CloseButton />
         </div>
