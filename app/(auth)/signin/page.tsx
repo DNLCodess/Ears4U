@@ -38,24 +38,55 @@ function SignInForm() {
   }
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-4">
-      <h1 className="font-display font-semibold text-5xl leading-[1.02] tracking-tight mb-4">
-        Ears<br />for <span className="text-leaf">you.</span>
-      </h1>
-      <Field label="Email" type="email" autoComplete="email" required
-        value={email} onChange={e => setEmail(e.target.value)} />
-      <Field label="Password" type="password" autoComplete="current-password" required
-        value={password} onChange={e => setPassword(e.target.value)} error={error ?? undefined} />
-      <Button type="submit" busy={busy}>Sign in</Button>
-      <Button type="button" variant="ghost" onClick={() => router.push('/register')}>Create an account</Button>
-      <Link
-        className="text-sm underline underline-offset-4 opacity-80 self-start rounded
-          focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fir"
-        href="/forgot-password"
-      >
-        Forgot password?
-      </Link>
-    </form>
+    <main className="flex min-h-dvh flex-col lg:flex-row">
+      <section className="relative flex h-[340px] flex-none items-center justify-center overflow-hidden text-warm-cream lg:h-auto lg:w-[46%]">
+        <svg className="absolute inset-0 h-full w-full" viewBox="0 0 620 660" preserveAspectRatio="xMidYMid slice" fill="none" aria-hidden>
+          <defs>
+            <linearGradient id="si-scrim" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stopColor="#170F07" />
+              <stop offset="1" stopColor="#2A1B0C" />
+            </linearGradient>
+            <radialGradient id="si-glow" cx=".5" cy=".42" r=".55">
+              <stop offset="0" stopColor="#F2BE45" stopOpacity=".24" />
+              <stop offset="1" stopColor="#F2BE45" stopOpacity="0" />
+            </radialGradient>
+          </defs>
+          <rect width="620" height="660" fill="url(#si-scrim)" />
+          <circle cx="310" cy="280" r="230" fill="url(#si-glow)" />
+          <circle cx="310" cy="280" r="100" fill="none" stroke="#FBEEDD" strokeWidth="1.3" opacity=".12" />
+          <circle cx="310" cy="280" r="150" fill="none" stroke="#FBEEDD" strokeWidth="1" opacity=".08" />
+          <circle cx="120" cy="90" r="1.3" fill="#F6E7B8" opacity=".5" />
+          <circle cx="500" cy="140" r="1" fill="#F6E7B8" opacity=".4" />
+        </svg>
+        <div className="relative z-[3] px-10 text-center">
+          <h1 className="font-display text-[42px] font-semibold leading-none text-white">
+            Ears<br />for <span className="text-[#F7CB5C]">you.</span>
+          </h1>
+          <p className="mx-auto mt-4 max-w-[30ch] text-[15px] leading-[1.55] text-warm-cream/85">
+            A safe space to talk, whenever you need it. No agenda, no judgment.
+          </p>
+        </div>
+      </section>
+
+      <section className="flex flex-1 items-center justify-center bg-oat px-6 py-10">
+        <form onSubmit={submit} className="flex w-full max-w-[320px] flex-col gap-4">
+          <h2 className="mb-1 font-display text-[22px] font-semibold">Welcome back.</h2>
+          <Field label="Email" type="email" autoComplete="email" required
+            value={email} onChange={e => setEmail(e.target.value)} />
+          <Field label="Password" type="password" autoComplete="current-password" required
+            value={password} onChange={e => setPassword(e.target.value)} error={error ?? undefined} />
+          <Button type="submit" busy={busy}>Sign in</Button>
+          <Button type="button" variant="ghost" onClick={() => router.push('/register')}>Create an account</Button>
+          <Link
+            className="self-center rounded text-sm underline underline-offset-4 opacity-80
+              focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fir"
+            href="/forgot-password"
+          >
+            Forgot password?
+          </Link>
+        </form>
+      </section>
+    </main>
   )
 }
 
