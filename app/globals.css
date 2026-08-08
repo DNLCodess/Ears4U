@@ -1,11 +1,14 @@
 @import "tailwindcss";
 
 @theme {
-  --color-oat: #F4F1E7;
+  --color-oat: #F6F1E5;
   --color-card: #FDFBF4;
   --color-fir: #22372B;
   --color-fir-deep: #16301F;
   --color-night: #102417;
+  --color-night-warm-top: #170F07;
+  --color-night-warm-bottom: #2A1B0C;
+  --color-warm-cream: #FBEEDD;
   --color-leaf: #2E7D49;
   --color-leaf-bright: #47A566;
   --color-sprout: #7BC48F;

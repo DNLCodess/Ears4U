@@ -14,7 +14,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const idlePrompt = useIdlePing()
   return (
     <QueryProvider>
-      <div className="min-h-dvh flex flex-col lg:flex-row lg:max-w-6xl lg:mx-auto">
+      <div className="min-h-dvh flex flex-col lg:flex-row lg:max-w-[1440px] lg:mx-auto">
         <TabBar />
         <main className="flex-1 pb-28 lg:pb-8 lg:pl-8">{children}</main>
         {idlePrompt}
