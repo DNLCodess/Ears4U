@@ -11,6 +11,13 @@ import { ErrorState } from '@/components/ui/error-state'
 
 const WELCOME = "This space is yours. Say whatever is on your mind, I'm listening."
 const GAP_MS = 10 * 60 * 1000
+// Mirrors the composer wrapper's own `bottom-[calc(env(safe-area-inset-bottom)+108px)]`
+// offset below: that's the gap deliberately reserved between the composer and the true
+// viewport bottom, so the composer clears the raised "Talk to me" tab button. Content
+// clearance (padding + scroll-margin) below the message list must reserve this same gap
+// on top of the composer's own (dynamically measured) height, or the last message just
+// ends up parked exactly where the composer sticks, underneath it, instead of above it.
+const TAB_BUTTON_CLEARANCE = 'calc(env(safe-area-inset-bottom) + 108px)'
 
 type PendingMessage = { id: string; content: string; status: 'pending' | 'failed' }
 
@@ -122,6 +129,24 @@ export default function ChatPage() {
   const reduceMotion = !!useReducedMotion()
   const [pending, setPending] = useState<PendingMessage[]>([])
   const bottomRef = useRef<HTMLDivElement>(null)
+  // Callback ref (not useRef+useEffect with []): the composer only mounts once the
+  // loading/error early-returns below have resolved, so the observer must attach
+  // whenever the node actually appears, not just once on the component's first mount.
+  const [composerNode, setComposerNode] = useState<HTMLDivElement | null>(null)
+  const [composerClearance, setComposerClearance] = useState(110)
+
+  useEffect(() => {
+    if (!composerNode || typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(entries => {
+      const entry = entries[0]
+      // +16px: small breathing room below the composer's own footprint (bg-oat/95
+      // pb-2 pt-1 wrapper), which the composer's rendered height already includes;
+      // this just keeps the last message from sitting flush against it.
+      if (entry) setComposerClearance(entry.contentRect.height + 16)
+    })
+    observer.observe(composerNode)
+    return () => observer.disconnect()
+  }, [composerNode])
 
   const history = useQuery({ queryKey: qk.chat, queryFn: getChatHistory })
 
@@ -177,13 +202,17 @@ export default function ChatPage() {
 
   const now = new Date()
   const hasPendingSend = pending.some(m => m.status === 'pending')
+  const messageListClearance = `calc(${TAB_BUTTON_CLEARANCE} + ${composerClearance}px)`
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col px-5 pb-4 pt-6 lg:px-6">
       <h1 className="sr-only">Chat</h1>
       <ChatHeader />
 
-      <div className="flex flex-col gap-3 pb-4">
+      <div
+        className="flex flex-col gap-3 pb-(--composer-clearance) lg:pb-4"
+        style={{ '--composer-clearance': messageListClearance } as React.CSSProperties}
+      >
         {isEmpty ? (
           <div className="max-w-[85%] self-start rounded-2xl rounded-bl-sm border-[1.5px] border-fir/15
             bg-card px-4 py-3 text-[15px] leading-relaxed">
@@ -242,11 +271,20 @@ export default function ChatPage() {
           </div>
         ))}
 
-        <div ref={bottomRef} />
+        {/* scroll-margin-bottom (not just the container's padding) is what actually
+            makes scrollIntoView stop short of the sticky composer below: padding alone
+            doesn't move the composer, which sticks at a fixed viewport offset regardless
+            of how much space is reserved above it, so scrollIntoView would otherwise drag
+            this sentinel (and the real content just above it) flush to the true viewport
+            bottom, right underneath the composer. */}
+        <div ref={bottomRef} style={{ scrollMarginBottom: messageListClearance } as React.CSSProperties} />
       </div>
 
-      <div className="sticky bottom-[calc(env(safe-area-inset-bottom)+108px)] z-20 flex flex-col gap-2
-        bg-oat/95 pb-2 pt-1 backdrop-blur lg:sticky lg:bottom-4">
+      <div
+        ref={setComposerNode}
+        className="sticky bottom-[calc(env(safe-area-inset-bottom)+108px)] z-20 flex flex-col gap-2
+        bg-oat/95 pb-2 pt-1 backdrop-blur lg:sticky lg:bottom-4"
+      >
         <Lifeline />
         <Composer disabled={hasPendingSend} onSend={sendMessage} />
       </div>
