@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Field } from '@/components/ui/field'
 import { passwordIssue } from '@/lib/password'
 import type { RegisterPayload } from '@/lib/api/types'
+import { CompactHero } from '@/components/listening/compact-hero'
 
 const COUNTRIES = [
   'Nigeria', 'United States', 'United Kingdom', 'Canada', 'Ghana', 'Kenya',
@@ -116,65 +117,64 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="font-display font-semibold text-4xl leading-[1.05] tracking-tight mb-1">
-        Create your account
-      </h1>
-      <p className="text-sm text-fir/70">Step {step} of 3</p>
+    <main>
+      <CompactHero step={`Step ${step} of 3`} title="Let's start with you." onBack={() => router.back()} />
+      <div className="mx-auto -mt-7 max-w-[420px] rounded-t-[26px] bg-oat px-6 pb-10 pt-7
+        shadow-[0_-8px_24px_rgba(0,0,0,.05)]">
+        <StepShell stepKey={step}>
+          {step === 1 ? (
+            <form onSubmit={goToStep2} className="flex flex-col gap-4">
+              <Field label="Name" autoComplete="name" required
+                value={draft.name} onChange={e => set('name', e.target.value)} />
+              <Field label="Email" type="email" autoComplete="email" required
+                value={draft.email} onChange={e => set('email', e.target.value)} />
+              <Button type="submit" disabled={!step1Valid}>Continue</Button>
+            </form>
+          ) : null}
 
-      <StepShell stepKey={step}>
-        {step === 1 ? (
-          <form onSubmit={goToStep2} className="flex flex-col gap-4">
-            <Field label="Name" autoComplete="name" required
-              value={draft.name} onChange={e => set('name', e.target.value)} />
-            <Field label="Email" type="email" autoComplete="email" required
-              value={draft.email} onChange={e => set('email', e.target.value)} />
-            <Button type="submit" disabled={!step1Valid}>Continue</Button>
-          </form>
-        ) : null}
+          {step === 2 ? (
+            <form onSubmit={goToStep3} className="flex flex-col gap-4">
+              <SelectField label="Gender" value={draft.gender}
+                onChange={v => set('gender', v)} options={GENDERS} />
+              <SelectField label="Country" value={draft.country}
+                onChange={v => set('country', v)} options={COUNTRIES} />
+              <label className="block">
+                <span className="block text-sm font-medium mb-1.5">Date of birth</span>
+                <input type="date" required max={maxDob()} value={draft.dateOfBirth}
+                  onChange={e => set('dateOfBirth', e.target.value)} className={selectClass} />
+              </label>
+              <SelectField label="Marital status" value={draft.maritalStatus}
+                onChange={v => set('maritalStatus', v)} options={MARITAL_STATUSES} />
+              <SelectField label="Employment status" value={draft.employmentStatus}
+                onChange={v => set('employmentStatus', v)} options={EMPLOYMENT_STATUSES} />
+              <p className="text-sm text-fir/70">
+                Why we ask: it shapes how the companion talks with you. Never shown to anyone.
+              </p>
+              <div className="flex gap-3">
+                <Button type="button" variant="ghost" onClick={() => setStep(1)}>Back</Button>
+                <Button type="submit" disabled={!step2Valid} className="flex-1">Continue</Button>
+              </div>
+            </form>
+          ) : null}
 
-        {step === 2 ? (
-          <form onSubmit={goToStep3} className="flex flex-col gap-4">
-            <SelectField label="Gender" value={draft.gender}
-              onChange={v => set('gender', v)} options={GENDERS} />
-            <SelectField label="Country" value={draft.country}
-              onChange={v => set('country', v)} options={COUNTRIES} />
-            <label className="block">
-              <span className="block text-sm font-medium mb-1.5">Date of birth</span>
-              <input type="date" required max={maxDob()} value={draft.dateOfBirth}
-                onChange={e => set('dateOfBirth', e.target.value)} className={selectClass} />
-            </label>
-            <SelectField label="Marital status" value={draft.maritalStatus}
-              onChange={v => set('maritalStatus', v)} options={MARITAL_STATUSES} />
-            <SelectField label="Employment status" value={draft.employmentStatus}
-              onChange={v => set('employmentStatus', v)} options={EMPLOYMENT_STATUSES} />
-            <p className="text-sm text-fir/70">
-              Why we ask: it shapes how the companion talks with you. Never shown to anyone.
-            </p>
-            <div className="flex gap-3">
-              <Button type="button" variant="ghost" onClick={() => setStep(1)}>Back</Button>
-              <Button type="submit" disabled={!step2Valid} className="flex-1">Continue</Button>
-            </div>
-          </form>
-        ) : null}
-
-        {step === 3 ? (
-          <form onSubmit={submit} className="flex flex-col gap-4">
-            <Field label="Password" type="password" autoComplete="new-password" required
-              value={draft.password} onChange={e => set('password', e.target.value)}
-              error={draft.password.length > 0 ? pwIssue ?? undefined : undefined} />
-            <Field label="Confirm password" type="password" autoComplete="new-password" required
-              value={draft.confirmPassword} onChange={e => set('confirmPassword', e.target.value)}
-              error={error ?? undefined} />
-            <div className="flex gap-3">
-              <Button type="button" variant="ghost" onClick={() => setStep(2)}>Back</Button>
-              <Button type="submit" busy={busy} disabled={!step3Valid} className="flex-1">
-                Create account
-              </Button>
-            </div>
-          </form>
-        ) : null}
-      </StepShell>
-    </div>
+          {step === 3 ? (
+            <form onSubmit={submit} className="flex flex-col gap-4">
+              <Field label="Password" type="password" autoComplete="new-password" required
+                value={draft.password} onChange={e => set('password', e.target.value)}
+                error={draft.password.length > 0 ? pwIssue ?? undefined : undefined} />
+              <Field label="Confirm password" type="password" autoComplete="new-password" required
+                value={draft.confirmPassword} onChange={e => set('confirmPassword', e.target.value)}
+                error={error ?? undefined} />
+              <div className="flex gap-3">
+                <Button type="button" variant="ghost" onClick={() => setStep(2)}>Back</Button>
+                <Button type="submit" busy={busy} disabled={!step3Valid} className="flex-1">
+                  Create account
+                </Button>
+              </div>
+            </form>
+          ) : null}
+        </StepShell>
+      </div>
+    </main>
   )
 }

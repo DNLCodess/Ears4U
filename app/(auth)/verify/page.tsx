@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { verifyUser, resendRegistrationOtp } from '@/lib/api/endpoints'
 import { ApiError } from '@/lib/api/errors'
 import { OtpInput, ResendButton } from '@/components/otp-input'
+import { CompactHero } from '@/components/listening/compact-hero'
 
 function maskEmail(email: string): string {
   const [local, domain] = email.split('@')
@@ -42,19 +43,21 @@ function VerifyForm() {
   if (!email) return null
 
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="font-display font-semibold text-4xl leading-[1.05] tracking-tight mb-1">
-        Check your email
-      </h1>
-      <p className="text-sm text-fir/70">
-        We sent a 6-digit code to {maskEmail(email)}.
-      </p>
-      <div ref={groupRef}>
-        <OtpInput key={attempt} length={6} onComplete={handleComplete} />
+    <main>
+      <CompactHero
+        title="Check your email."
+        subtitle={`We sent a 6-digit code to ${maskEmail(email)}.`}
+        onBack={() => router.back()}
+      />
+      <div className="mx-auto -mt-7 flex max-w-[420px] flex-col gap-4 rounded-t-[26px] bg-oat px-6 pb-10 pt-7
+        shadow-[0_-8px_24px_rgba(0,0,0,.05)]">
+        <div ref={groupRef}>
+          <OtpInput key={attempt} length={6} onComplete={handleComplete} />
+        </div>
+        {error ? <p role="alert" className="text-sm text-clay">{error}</p> : null}
+        <ResendButton cooldownSeconds={60} onResend={() => resendRegistrationOtp(email)} />
       </div>
-      {error ? <p role="alert" className="text-sm text-clay">{error}</p> : null}
-      <ResendButton cooldownSeconds={60} onResend={() => resendRegistrationOtp(email)} />
-    </div>
+    </main>
   )
 }
 
