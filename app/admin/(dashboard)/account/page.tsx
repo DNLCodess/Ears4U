@@ -260,6 +260,7 @@ export default function AdminAccountPage() {
 
   return (
     <div className="flex max-w-xl flex-col gap-4">
+      <h1 className="font-display text-2xl font-semibold">Account</h1>
       <Header profile={data} />
 
       <Section title="Profile">

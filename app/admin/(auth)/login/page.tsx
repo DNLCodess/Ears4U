@@ -38,10 +38,11 @@ function AdminLoginForm() {
   return (
     <AdminAuthCard title="Admin sign in" subtitle="Manage the EARS FOR YOU platform.">
       <form onSubmit={submit} className="flex flex-col gap-4">
+        {error ? <p role="alert" className="text-sm text-clay">{error}</p> : null}
         <Field label="Email" type="email" autoComplete="email" required
           value={email} onChange={e => setEmail(e.target.value)} />
         <Field label="Password" type="password" autoComplete="current-password" required
-          value={password} onChange={e => setPassword(e.target.value)} error={error ?? undefined} />
+          value={password} onChange={e => setPassword(e.target.value)} />
         <Button type="submit" busy={busy}>Sign in</Button>
         <Link
           className="self-center rounded text-sm underline underline-offset-4 opacity-70
