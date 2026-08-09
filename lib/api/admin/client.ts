@@ -103,3 +103,43 @@ export async function adminApiFetch<T = unknown>(path: string, opts: Opts = {}):
 
   return parsed as T
 }
+
+export async function adminApiFetchBlob(path: string): Promise<Blob> {
+  if (MOCKS_ENABLED) {
+    return adminMockFetch<Blob>(path, { method: 'GET' })
+  }
+
+  const doFetch = async (): Promise<Response> => {
+    const headers = new Headers()
+    const token = getAdminAccessToken()
+    if (token) headers.set('authorization', `Bearer ${token}`)
+    try {
+      return await fetch(`${BASE}${path}`, { method: 'GET', headers, credentials: 'include' })
+    } catch {
+      throw new ApiError(0, NETWORK_ERROR_MESSAGE)
+    }
+  }
+
+  let res = await doFetch()
+
+  if (res.status === 401 || res.status === 403) {
+    const ok = await refreshAdminSession()
+    if (ok) {
+      res = await doFetch()
+      if (res.status === 401 || res.status === 403) {
+        clearAdminAccessToken()
+        authExpiredCb?.()
+      }
+    } else {
+      clearAdminAccessToken()
+      authExpiredCb?.()
+      throw new ApiError(res.status, friendlyFor(401))
+    }
+  }
+
+  if (!res.ok) {
+    throw new ApiError(res.status, friendlyFor(res.status))
+  }
+
+  return res.blob()
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { adminApiFetch, onAdminAuthExpired, refreshAdminSession } from './client'
+import { adminApiFetch, adminApiFetchBlob, onAdminAuthExpired, refreshAdminSession } from './client'
 import { getAdminAccessToken, setAdminAccessToken, clearAdminAccessToken } from './token'
 
 const originalFetch = global.fetch
@@ -102,5 +102,59 @@ describe('refreshAdminSession', () => {
     await refreshAdminSession()
 
     expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('adminApiFetchBlob', () => {
+  beforeEach(() => {
+    clearAdminAccessToken()
+  })
+  afterEach(() => {
+    global.fetch = originalFetch
+    vi.restoreAllMocks()
+  })
+
+  it('returns a blob on success, with a bearer token when authenticated', async () => {
+    setAdminAccessToken('tok-blob')
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(new Blob(['a,b\n1,2'], { type: 'text/csv' }), { status: 200 })
+    )
+    global.fetch = fetchMock as unknown as typeof fetch
+
+    const blob = await adminApiFetchBlob('/api/v1/admins/dashboard/exports')
+
+    expect(blob).toBeInstanceOf(Blob)
+    const [, init] = fetchMock.mock.calls[0]!
+    const headers = init.headers as Headers
+    expect(headers.get('authorization')).toBe('Bearer tok-blob')
+    expect(init.credentials).toBe('include')
+  })
+
+  it('refreshes once on 401 and retries, then returns a blob', async () => {
+    setAdminAccessToken('stale')
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(null, { status: 401 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ accessToken: 'fresh' }), {
+        status: 200, headers: { 'content-type': 'application/json' },
+      }))
+      .mockResolvedValueOnce(new Response(new Blob(['x'], { type: 'text/csv' }), { status: 200 }))
+    global.fetch = fetchMock as unknown as typeof fetch
+
+    const blob = await adminApiFetchBlob('/api/v1/admins/dashboard/exports')
+
+    expect(blob).toBeInstanceOf(Blob)
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(fetchMock.mock.calls[1]![0]).toBe('/backend/api/v1/auth/admin-refresh')
+  })
+
+  it('throws an ApiError when the request fails and refresh also fails', async () => {
+    setAdminAccessToken('stale')
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(null, { status: 401 }))
+      .mockResolvedValueOnce(new Response(null, { status: 401 }))
+    global.fetch = fetchMock as unknown as typeof fetch
+
+    await expect(adminApiFetchBlob('/api/v1/admins/dashboard/exports')).rejects.toThrow()
+    expect(getAdminAccessToken()).toBeNull()
   })
 })
