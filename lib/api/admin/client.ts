@@ -27,7 +27,7 @@ async function parseBody(res: Response): Promise<unknown> {
 async function refresh(): Promise<boolean> {
   let res: Response
   try {
-    res = await fetch(`${BASE}/api/v1/auth/admin-refresh`, { method: 'POST' })
+    res = await fetch(`${BASE}/api/v1/auth/admin-refresh`, { method: 'POST', credentials: 'include' })
   } catch {
     throw new ApiError(0, NETWORK_ERROR_MESSAGE)
   }

@@ -44,6 +44,8 @@ describe('adminApiFetch', () => {
     expect(result).toEqual({ ok: true })
     expect(fetchMock).toHaveBeenCalledTimes(3)
     expect(fetchMock.mock.calls[1]![0]).toBe('/backend/api/v1/auth/admin-refresh')
+    const refreshInit = fetchMock.mock.calls[1]![1]
+    expect(refreshInit.credentials).toBe('include')
     expect(getAdminAccessToken()).toBe('fresh')
   })
 
