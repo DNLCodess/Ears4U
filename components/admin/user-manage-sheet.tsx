@@ -30,7 +30,7 @@ const OTP_KINDS: { kind: OtpKind; label: string }[] = [
 function StatusAction({ user }: { user: AdminUserSummary }) {
   const queryClient = useQueryClient()
   const [confirming, setConfirming] = useState(false)
-  const isActive = user.status === 'active'
+  const isActive = user.status === 'Active'
 
   const mutation = useMutation({
     mutationFn: () => (isActive ? suspendAdminUser(user.email) : reactivateAdminUser(user.email)),

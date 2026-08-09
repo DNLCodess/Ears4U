@@ -222,16 +222,21 @@ describe('admin users read endpoints', () => {
     vi.restoreAllMocks()
   })
 
-  it('getAdminUsers builds a query string from the provided filters', async () => {
-    vi.spyOn(client, 'adminApiFetch').mockResolvedValue({ users: [], page: 1, totalPages: 1 })
-    await getAdminUsers({ search: 'ada', status: 'active', page: 2 })
-    expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/users?search=ada&status=active&page=2')
+  it('getAdminUsers builds a query string from the provided filters, converting the 1-indexed ' +
+    'page to the backend\'s 0-indexed page param', async () => {
+    vi.spyOn(client, 'adminApiFetch').mockResolvedValue({
+      totalUsers: 0, activeUsers: 0, suspendedUsers: 0, users: [], currentPage: 1, totalPages: 1, totalItems: 0,
+    })
+    await getAdminUsers({ search: 'ada', status: 'ACTIVE', page: 2 })
+    expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/users?search=ada&status=ACTIVE&page=1&size=5')
   })
 
-  it('getAdminUsers omits unset filters from the query string', async () => {
-    vi.spyOn(client, 'adminApiFetch').mockResolvedValue({ users: [], page: 1, totalPages: 1 })
+  it('getAdminUsers defaults to page 0 and the mock page size when no filters are given', async () => {
+    vi.spyOn(client, 'adminApiFetch').mockResolvedValue({
+      totalUsers: 0, activeUsers: 0, suspendedUsers: 0, users: [], currentPage: 0, totalPages: 1, totalItems: 0,
+    })
     await getAdminUsers()
-    expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/users')
+    expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/users?page=0&size=5')
   })
 
   it('getAdminAuditLogs fetches the audit-logs path with no body', async () => {
@@ -248,40 +253,45 @@ describe('admin user action endpoints', () => {
     vi.restoreAllMocks()
   })
 
-  it('suspendAdminUser sends a JSON body, never a query string', async () => {
+  it('suspendAdminUser sends userEmail as a query param, no body', async () => {
     vi.spyOn(client, 'adminApiFetch').mockResolvedValue({ message: 'ok' })
     await suspendAdminUser('grace.okafor@example.com')
-    const [path, opts] = (client.adminApiFetch as ReturnType<typeof vi.fn>).mock.calls[0]!
-    expect(path).not.toContain('?')
-    expect(opts).toEqual({ method: 'PUT', body: { userEmail: 'grace.okafor@example.com' } })
+    expect(client.adminApiFetch).toHaveBeenCalledWith(
+      '/api/v1/admins/users/suspend?userEmail=grace.okafor%40example.com',
+      { method: 'PUT' },
+    )
   })
 
-  it('reactivateAdminUser sends a JSON body with userEmail', async () => {
+  it('reactivateAdminUser sends userEmail as a query param, no body', async () => {
     vi.spyOn(client, 'adminApiFetch').mockResolvedValue({ message: 'ok' })
     await reactivateAdminUser('amara.chukwu@example.com')
-    expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/users/reactivate', {
-      method: 'PUT', body: { userEmail: 'amara.chukwu@example.com' },
-    })
+    expect(client.adminApiFetch).toHaveBeenCalledWith(
+      '/api/v1/admins/users/reactivate?userEmail=amara.chukwu%40example.com',
+      { method: 'PUT' },
+    )
   })
 
-  it('changeAdminUserEmail sends currentEmail and newEmail', async () => {
+  it('changeAdminUserEmail sends currentEmail and newEmail as query params, no body', async () => {
     vi.spyOn(client, 'adminApiFetch').mockResolvedValue({ message: 'ok' })
     await changeAdminUserEmail('old@example.com', 'new@example.com')
-    expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/users/change-email', {
-      method: 'PUT', body: { currentEmail: 'old@example.com', newEmail: 'new@example.com' },
-    })
+    expect(client.adminApiFetch).toHaveBeenCalledWith(
+      '/api/v1/admins/users/change-email?currentEmail=old%40example.com&newEmail=new%40example.com',
+      { method: 'PUT' },
+    )
   })
 
-  it('generateAdminUserOtp dispatches to the correct failover path per kind', async () => {
+  it('generateAdminUserOtp dispatches to the correct failover path per kind, with userEmail as a query param', async () => {
     vi.spyOn(client, 'adminApiFetch').mockResolvedValue({ otp: '482913' })
     await generateAdminUserOtp('grace.okafor@example.com', 'registration')
-    expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/users/failover/registration-otp', {
-      method: 'POST', body: { userEmail: 'grace.okafor@example.com' },
-    })
+    expect(client.adminApiFetch).toHaveBeenCalledWith(
+      '/api/v1/admins/users/failover/registration-otp?userEmail=grace.okafor%40example.com',
+      { method: 'POST' },
+    )
 
     await generateAdminUserOtp('grace.okafor@example.com', 'password-change')
-    expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/users/failover/password-change-otp', {
-      method: 'POST', body: { userEmail: 'grace.okafor@example.com' },
-    })
+    expect(client.adminApiFetch).toHaveBeenCalledWith(
+      '/api/v1/admins/users/failover/password-change-otp?userEmail=grace.okafor%40example.com',
+      { method: 'POST' },
+    )
   })
 })

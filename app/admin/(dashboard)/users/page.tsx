@@ -10,16 +10,28 @@ import { Field } from '@/components/ui/field'
 import { Button } from '@/components/ui/button'
 import { UserManageSheet } from '@/components/admin/user-manage-sheet'
 
-const STATUS_OPTIONS: { value: '' | 'active' | 'suspended'; label: string }[] = [
+// Status filter query values are a best-guess ('ACTIVE'/'SUSPENDED', uppercase to match the
+// confirmed "ALL" default's casing) - see the comment on getAdminUsers in endpoints.ts.
+const STATUS_OPTIONS: { value: '' | 'ACTIVE' | 'SUSPENDED'; label: string }[] = [
   { value: '', label: 'All' },
-  { value: 'active', label: 'Active' },
-  { value: 'suspended', label: 'Suspended' },
+  { value: 'ACTIVE', label: 'Active' },
+  { value: 'SUSPENDED', label: 'Suspended' },
 ]
 
+// Reads `createdAt` (the real UserDetails wire field, a "yyyy-MM-dd"-style date string) - the
+// helper keeps its historical name but no longer reads a `joinedAt` field, which doesn't exist on
+// the real backend response.
+//
+// `new Date('yyyy-MM-dd')` parses the string as UTC midnight, per the ES spec. Formatting that in
+// the host's *local* timezone rolls the displayed date back by one day for any negative UTC
+// offset (e.g. US timezones) - confirmed with a quick sanity check:
+// `TZ=America/New_York node -e "new Date('2026-02-14').toLocaleDateString('en-US', {...})"` prints
+// "Feb 13, 2026", not "Feb 14". Forcing `timeZone: 'UTC'` here makes the displayed calendar date
+// match the wire value regardless of the deployment host's local timezone.
 export function formatJoinedAt(iso: string): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return ''
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
 }
 
 export function formatLogTime(iso: string): string {
@@ -30,9 +42,9 @@ export function formatLogTime(iso: string): string {
 
 export default function AdminUsersPage() {
   const [search, setSearch] = useState('')
-  const [status, setStatus] = useState<'' | 'active' | 'suspended'>('')
+  const [status, setStatus] = useState<'' | 'ACTIVE' | 'SUSPENDED'>('')
   const [page, setPage] = useState(1)
-  const [selectedUserId, setSelectedUserId] = useState<number | null>(null)
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
 
   const users = useQuery({
     queryKey: [...adminQk.users, { search, status, page }],
@@ -90,10 +102,10 @@ export default function AdminUsersPage() {
                   </div>
                   <div className="flex flex-none items-center gap-3">
                     <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold
-                      ${u.status === 'active' ? 'bg-leaf/15 text-leaf' : 'bg-clay/15 text-clay'}`}>
-                      {u.status === 'active' ? 'Active' : 'Suspended'}
+                      ${u.status === 'Active' ? 'bg-leaf/15 text-leaf' : 'bg-clay/15 text-clay'}`}>
+                      {u.status}
                     </span>
-                    <span className="hidden text-xs opacity-50 lg:inline">{formatJoinedAt(u.joinedAt)}</span>
+                    <span className="hidden text-xs opacity-50 lg:inline">{formatJoinedAt(u.createdAt)}</span>
                     <Button type="button" variant="ghost" onClick={() => setSelectedUserId(u.id)}>Manage</Button>
                   </div>
                 </div>
@@ -105,7 +117,7 @@ export default function AdminUsersPage() {
               <Button type="button" variant="ghost" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
                 Previous
               </Button>
-              <span className="opacity-60">Page {users.data.page} of {users.data.totalPages}</span>
+              <span className="opacity-60">Page {users.data.currentPage + 1} of {users.data.totalPages}</span>
               <Button type="button" variant="ghost" disabled={page >= users.data.totalPages}
                 onClick={() => setPage(p => p + 1)}>
                 Next
@@ -133,9 +145,9 @@ export default function AdminUsersPage() {
               <div key={log.id} className="flex items-center justify-between gap-3 py-3">
                 <div className="min-w-0">
                   <p className="truncate text-[14px]">{log.action}</p>
-                  <p className="text-xs opacity-55">{log.actor}</p>
+                  <p className="text-xs opacity-55">{log.adminEmail}</p>
                 </div>
-                <span className="flex-none text-xs opacity-50">{formatLogTime(log.createdAt)}</span>
+                <span className="flex-none text-xs opacity-50">{formatLogTime(log.timestamp)}</span>
               </div>
             ))}
           </div>

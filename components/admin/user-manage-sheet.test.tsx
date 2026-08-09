@@ -8,8 +8,8 @@ import * as endpoints from '@/lib/api/admin/endpoints'
 import { ApiError } from '@/lib/api/errors'
 import { adminQk } from '@/lib/query/admin-keys'
 
-const USER = { id: 1, name: 'Grace Okafor', email: 'grace.okafor@example.com', status: 'active' as const, joinedAt: '2026-02-14T00:00:00Z' }
-const SUSPENDED_USER = { ...USER, id: 2, status: 'suspended' as const }
+const USER = { id: '1', name: 'Grace Okafor', email: 'grace.okafor@example.com', status: 'Active' as const, createdAt: '2026-02-14' }
+const SUSPENDED_USER = { ...USER, id: '2', status: 'Suspended' as const }
 
 function renderWithClient(ui: React.ReactElement) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })

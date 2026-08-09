@@ -57,16 +57,20 @@ function mockQueries(states: {
 }
 
 const USERS_PAGE: AdminUsersPageData = {
+  totalUsers: 2,
+  activeUsers: 1,
+  suspendedUsers: 1,
   users: [
-    { id: 1, name: 'Grace Okafor', email: 'grace.okafor@example.com', status: 'active', joinedAt: '2026-02-14T14:00:00Z' },
-    { id: 2, name: 'Amara Chukwu', email: 'amara.chukwu@example.com', status: 'suspended', joinedAt: '2026-01-20T00:00:00Z' },
+    { id: '1', name: 'Grace Okafor', email: 'grace.okafor@example.com', status: 'Active', createdAt: '2026-02-14' },
+    { id: '2', name: 'Amara Chukwu', email: 'amara.chukwu@example.com', status: 'Suspended', createdAt: '2026-01-20' },
   ],
-  page: 1,
+  currentPage: 0,
   totalPages: 1,
+  totalItems: 2,
 }
 
 const AUDIT_LOGS: AdminAuditLogItem[] = [
-  { id: 1, action: 'Suspended user amara.chukwu@example.com', actor: 'Ada Admin', createdAt: '2026-08-06T10:00:00Z' },
+  { id: 1, action: 'Suspended user amara.chukwu@example.com', adminEmail: 'ada@earsforyou.test', timestamp: '2026-08-06T10:00:00Z' },
 ]
 
 describe('AdminUsersPage', () => {
@@ -101,7 +105,10 @@ describe('AdminUsersPage', () => {
     })
 
     it('renders "No users match that search." when the result set is empty', () => {
-      mockQueries({ users: { data: { users: [], page: 1, totalPages: 1 } }, auditLogs: { data: AUDIT_LOGS } })
+      mockQueries({
+        users: { data: { totalUsers: 0, activeUsers: 0, suspendedUsers: 0, users: [], currentPage: 0, totalPages: 1, totalItems: 0 } },
+        auditLogs: { data: AUDIT_LOGS },
+      })
       render(<AdminUsersPage />)
       expect(screen.getByText('No users match that search.')).toBeInTheDocument()
     })
@@ -154,7 +161,7 @@ describe('AdminUsersPage', () => {
       mockQueries({ users: { data: USERS_PAGE }, auditLogs: { data: AUDIT_LOGS } })
       render(<AdminUsersPage />)
       expect(screen.getByText('Suspended user amara.chukwu@example.com')).toBeInTheDocument()
-      expect(screen.getByText('Ada Admin')).toBeInTheDocument()
+      expect(screen.getByText('ada@earsforyou.test')).toBeInTheDocument()
       expect(screen.getByText(/Aug\s+6/)).toBeInTheDocument()
     })
   })
@@ -169,7 +176,7 @@ describe('AdminUsersPage', () => {
   })
 
   describe('search, filters, and pagination', () => {
-    const USERS_PAGE_MULTI: AdminUsersPageData = { ...USERS_PAGE, page: 1, totalPages: 3 }
+    const USERS_PAGE_MULTI: AdminUsersPageData = { ...USERS_PAGE, currentPage: 0, totalPages: 3 }
 
     function lastUsersQueryParams() {
       const calls = (useQueryMock.mock.calls as [{ queryKey: readonly unknown[] }][])
@@ -202,7 +209,7 @@ describe('AdminUsersPage', () => {
 
       await user.click(screen.getByRole('button', { name: 'Active' }))
 
-      expect(lastUsersQueryParams()).toMatchObject({ status: 'active', page: 1 })
+      expect(lastUsersQueryParams()).toMatchObject({ status: 'ACTIVE', page: 1 })
     })
 
     it('increments page in the users query key when Next is clicked', async () => {
@@ -218,7 +225,7 @@ describe('AdminUsersPage', () => {
 
     it('renders pagination controls even when the current page has no users, so an admin can still click Previous', async () => {
       mockQueries({
-        users: { data: { users: [], page: 2, totalPages: 2 } },
+        users: { data: { totalUsers: 0, activeUsers: 0, suspendedUsers: 0, users: [], currentPage: 1, totalPages: 2, totalItems: 0 } },
         auditLogs: { data: AUDIT_LOGS },
       })
       const user = userEvent.setup()

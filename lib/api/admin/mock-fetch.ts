@@ -88,27 +88,31 @@ export async function adminMockFetch<T>(path: string, opts: Opts = {}): Promise<
     const status = params.get('status')
     return delay(adminMockStore.getUsers({
       search: params.get('search') ?? undefined,
-      status: status === 'active' || status === 'suspended' ? status : undefined,
+      status: status === 'ACTIVE' || status === 'SUSPENDED' ? status : undefined,
       page: params.get('page') ? Number(params.get('page')) : undefined,
+      size: params.get('size') ? Number(params.get('size')) : undefined,
     }) as T)
   }
   if (pathname === '/api/v1/admins/audit-logs' && method === 'GET') {
     return delay(adminMockStore.getAuditLogs() as T)
   }
 
+  // The real backend's suspend/reactivate/change-email/failover-otp endpoints all take
+  // @RequestParam query params, never a JSON body - read from the URL's query string here too,
+  // matching what the frontend now actually sends (see endpoints.ts).
   if (pathname === '/api/v1/admins/users/suspend' && method === 'PUT') {
-    const { userEmail } = (opts.body ?? {}) as { userEmail?: string }
-    adminMockStore.setUserStatus(userEmail ?? '', 'suspended')
+    const params = new URLSearchParams(path.split('?')[1] ?? '')
+    adminMockStore.setUserStatus(params.get('userEmail') ?? '', 'Suspended')
     return delay({ message: 'ok' } as T)
   }
   if (pathname === '/api/v1/admins/users/reactivate' && method === 'PUT') {
-    const { userEmail } = (opts.body ?? {}) as { userEmail?: string }
-    adminMockStore.setUserStatus(userEmail ?? '', 'active')
+    const params = new URLSearchParams(path.split('?')[1] ?? '')
+    adminMockStore.setUserStatus(params.get('userEmail') ?? '', 'Active')
     return delay({ message: 'ok' } as T)
   }
   if (pathname === '/api/v1/admins/users/change-email' && method === 'PUT') {
-    const { currentEmail, newEmail } = (opts.body ?? {}) as { currentEmail?: string; newEmail?: string }
-    adminMockStore.setUserEmail(currentEmail ?? '', newEmail ?? '')
+    const params = new URLSearchParams(path.split('?')[1] ?? '')
+    adminMockStore.setUserEmail(params.get('currentEmail') ?? '', params.get('newEmail') ?? '')
     return delay({ message: 'ok' } as T)
   }
   if (

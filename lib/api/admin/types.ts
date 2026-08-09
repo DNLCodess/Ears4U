@@ -80,21 +80,39 @@ export interface AdminAnalytics {
   moods: AdminAnalyticsPoint[]
   aiUsage: AdminAnalyticsPoint[]
 }
+// Backend UserDetails (nested inside UserManagementResponseDTO, GET /api/v1/admins/users).
+// status is a literal capitalized display string ("Active"/"Suspended") per
+// AdminService.getFilteredData, not a lowercase or enum-style value. createdAt is a pre-formatted
+// "yyyy-MM-dd" string, not a full ISO timestamp - `new Date(...)` still parses this format fine.
 export interface AdminUserSummary {
-  id: number
+  id: string
   name: string
   email: string
-  status: 'active' | 'suspended'
-  joinedAt: string
+  status: 'Active' | 'Suspended'
+  createdAt: string
 }
+// Backend UserManagementResponseDTO (GET /api/v1/admins/users).
 export interface AdminUsersPage {
+  totalUsers: number
+  activeUsers: number
+  suspendedUsers: number
   users: AdminUserSummary[]
-  page: number
+  currentPage: number
   totalPages: number
+  totalItems: number
 }
+// Mock-mode page size for GET /api/v1/admins/users. The real backend defaults `size` to 10, but
+// this frontend sends an explicit `size` query param instead (see getAdminUsers), and keeps this
+// smaller value so the small mock user fixture still exercises pagination across 2+ pages. Kept
+// here (rather than duplicated in endpoints.ts and mock-store.ts) so both stay in sync.
+export const ADMIN_USERS_PAGE_SIZE = 5
+// Backend SystemAuditLogs (GET /api/v1/admins/audit-logs). The entity class itself isn't present
+// in the available backend source tree, but adminEmail/action/id/timestamp were confirmed from
+// constructor/getter usage in AdminService.java, NotificationDashboardService.java, and
+// NotificationService.java (`.adminEmail(...)`, `.action(...)`, `.getId()`, `.getTimestamp()`).
 export interface AdminAuditLogItem {
   id: number
   action: string
-  actor: string
-  createdAt: string
+  adminEmail: string
+  timestamp: string
 }

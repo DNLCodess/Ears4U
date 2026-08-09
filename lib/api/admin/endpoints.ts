@@ -1,5 +1,6 @@
 import { adminApiFetch, adminApiFetchBlob } from './client'
 import { setAdminAccessToken, clearAdminAccessToken } from './token'
+import { ADMIN_USERS_PAGE_SIZE } from './types'
 import type {
   AdminProfile, AdminRegisterPayload, UpdateAdminProfilePayload,
   AdminDashboardMetrics, AdminBroadcastHistoryItem, AdminNotificationDashboardResponse,
@@ -125,22 +126,40 @@ export async function getAdminAnalytics(): Promise<AdminAnalytics> {
 
 export const downloadAdminDashboardExport = () => adminApiFetchBlob('/api/v1/admins/dashboard/exports')
 
-export function getAdminUsers(params: { search?: string; status?: 'active' | 'suspended'; page?: number } = {}) {
+// Backend GET /api/v1/admins/users `status` query param only has its default value ("ALL")
+// confirmed from source - the class that interprets non-default values, UserSpecification, is not
+// present in the available backend source tree. 'ACTIVE'/'SUSPENDED' is a best-guess only,
+// matching "ALL"'s uppercase casing convention - unlike every other fix in this file, which is
+// directly confirmed from reading Java source.
+export function getAdminUsers(
+  params: { search?: string; status?: 'ACTIVE' | 'SUSPENDED'; page?: number; size?: number } = {},
+) {
   const qs = new URLSearchParams()
   if (params.search) qs.set('search', params.search)
   if (params.status) qs.set('status', params.status)
-  if (params.page) qs.set('page', String(params.page))
-  const query = qs.toString()
-  return adminApiFetch<AdminUsersPage>(`/api/v1/admins/users${query ? `?${query}` : ''}`)
+  // The Users page keeps its own page state 1-indexed for display; the backend's `page` query
+  // param (and its response's `currentPage`) are 0-indexed, so convert only at this boundary.
+  qs.set('page', String((params.page ?? 1) - 1))
+  qs.set('size', String(params.size ?? ADMIN_USERS_PAGE_SIZE))
+  return adminApiFetch<AdminUsersPage>(`/api/v1/admins/users?${qs.toString()}`)
 }
 export const getAdminAuditLogs = () => adminApiFetch<AdminAuditLogItem[]>('/api/v1/admins/audit-logs')
 
+// PUT /users/suspend, /users/reactivate, and /users/change-email all take @RequestParam query
+// params on the real backend, never a request body, despite being PUT requests - a wrong "every
+// PUT/POST sends JSON" assumption was carried through the whole users-mutation surface. No `body`
+// key is passed at all (not `body: undefined`) so the client never sets a content-type header for
+// these.
 export const suspendAdminUser = (userEmail: string) =>
-  adminApiFetch('/api/v1/admins/users/suspend', { method: 'PUT', body: { userEmail } })
+  adminApiFetch(`/api/v1/admins/users/suspend?userEmail=${encodeURIComponent(userEmail)}`, { method: 'PUT' })
 export const reactivateAdminUser = (userEmail: string) =>
-  adminApiFetch('/api/v1/admins/users/reactivate', { method: 'PUT', body: { userEmail } })
+  adminApiFetch(`/api/v1/admins/users/reactivate?userEmail=${encodeURIComponent(userEmail)}`, { method: 'PUT' })
 export const changeAdminUserEmail = (currentEmail: string, newEmail: string) =>
-  adminApiFetch('/api/v1/admins/users/change-email', { method: 'PUT', body: { currentEmail, newEmail } })
+  adminApiFetch(
+    `/api/v1/admins/users/change-email?currentEmail=${encodeURIComponent(currentEmail)}` +
+      `&newEmail=${encodeURIComponent(newEmail)}`,
+    { method: 'PUT' },
+  )
 
 const FAILOVER_OTP_PATHS: Record<'registration' | 'password' | 'email' | 'password-change', string> = {
   registration: '/api/v1/admins/users/failover/registration-otp',
@@ -148,5 +167,9 @@ const FAILOVER_OTP_PATHS: Record<'registration' | 'password' | 'email' | 'passwo
   email: '/api/v1/admins/users/failover/email-otp',
   'password-change': '/api/v1/admins/users/failover/password-change-otp',
 }
+// All four failover endpoints are POSTs that take only a `userEmail` query param, no body.
 export const generateAdminUserOtp = (userEmail: string, kind: keyof typeof FAILOVER_OTP_PATHS) =>
-  adminApiFetch<{ otp: string }>(FAILOVER_OTP_PATHS[kind], { method: 'POST', body: { userEmail } })
+  adminApiFetch<{ otp: string }>(
+    `${FAILOVER_OTP_PATHS[kind]}?userEmail=${encodeURIComponent(userEmail)}`,
+    { method: 'POST' },
+  )

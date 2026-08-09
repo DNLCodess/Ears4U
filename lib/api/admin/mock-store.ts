@@ -1,3 +1,4 @@
+import { ADMIN_USERS_PAGE_SIZE } from './types'
 import type {
   AdminProfile, AdminDashboardMetrics, AdminBroadcastHistoryItem, AdminNotificationDashboardResponse,
   AdminAnalyticsResponse, AdminTimeSeriesPoint, AdminAiUsagePoint,
@@ -77,21 +78,21 @@ const analytics: AdminAnalyticsResponse = {
   aiUsageStatistics: buildAiUsageSeries(300, 60),
 }
 
+// id is a string and createdAt is a "yyyy-MM-dd"-style date (no time component) to mirror the
+// real UserDetails wire shape (id: String, createdAt: pre-formatted String, not an ISO timestamp).
 const users: AdminUserSummary[] = [
-  { id: 1, name: 'Grace Okafor', email: 'grace.okafor@example.com', status: 'active', joinedAt: '2026-02-14T00:00:00Z' },
-  { id: 2, name: 'Daniel Osei', email: 'daniel.osei@example.com', status: 'active', joinedAt: '2026-03-01T00:00:00Z' },
-  { id: 3, name: 'Amara Chukwu', email: 'amara.chukwu@example.com', status: 'suspended', joinedAt: '2026-01-20T00:00:00Z' },
-  { id: 4, name: 'Tomiwa Bello', email: 'tomiwa.bello@example.com', status: 'active', joinedAt: '2026-04-10T00:00:00Z' },
-  { id: 5, name: 'Chiamaka Eze', email: 'chiamaka.eze@example.com', status: 'active', joinedAt: '2026-05-02T00:00:00Z' },
-  { id: 6, name: 'Femi Adeyemi', email: 'femi.adeyemi@example.com', status: 'suspended', joinedAt: '2026-02-28T00:00:00Z' },
+  { id: '1', name: 'Grace Okafor', email: 'grace.okafor@example.com', status: 'Active', createdAt: '2026-02-14' },
+  { id: '2', name: 'Daniel Osei', email: 'daniel.osei@example.com', status: 'Active', createdAt: '2026-03-01' },
+  { id: '3', name: 'Amara Chukwu', email: 'amara.chukwu@example.com', status: 'Suspended', createdAt: '2026-01-20' },
+  { id: '4', name: 'Tomiwa Bello', email: 'tomiwa.bello@example.com', status: 'Active', createdAt: '2026-04-10' },
+  { id: '5', name: 'Chiamaka Eze', email: 'chiamaka.eze@example.com', status: 'Active', createdAt: '2026-05-02' },
+  { id: '6', name: 'Femi Adeyemi', email: 'femi.adeyemi@example.com', status: 'Suspended', createdAt: '2026-02-28' },
 ]
 
 const auditLogs: AdminAuditLogItem[] = [
-  { id: 1, action: 'Suspended user amara.chukwu@example.com', actor: 'Ada Admin', createdAt: '2026-08-06T10:00:00Z' },
-  { id: 2, action: 'Sent broadcast to All users', actor: 'Ada Admin', createdAt: '2026-08-05T14:00:00Z' },
+  { id: 1, action: 'Suspended user amara.chukwu@example.com', adminEmail: 'admin@earsforyou.test', timestamp: '2026-08-06T10:00:00Z' },
+  { id: 2, action: 'Sent broadcast to All users', adminEmail: 'admin@earsforyou.test', timestamp: '2026-08-05T14:00:00Z' },
 ]
-
-const USERS_PAGE_SIZE = 5
 
 export const adminMockStore = {
   getProfile(): AdminProfile {
@@ -118,22 +119,37 @@ export const adminMockStore = {
     const rows = Object.entries(dashboardMetrics).map(([key, value]) => `${key},${value}`)
     return new Blob([`metric,value\n${rows.join('\n')}\n`], { type: 'text/csv' })
   },
-  getUsers(params: { search?: string; status?: 'active' | 'suspended'; page?: number }): AdminUsersPage {
-    const page = params.page ?? 1
+  // page is 0-indexed here, matching the real backend's `page` query param/`currentPage`
+  // response field convention - the frontend's 1-indexed-to-0-indexed conversion happens at the
+  // getAdminUsers API boundary, before this ever gets called.
+  getUsers(params: { search?: string; status?: 'ACTIVE' | 'SUSPENDED'; page?: number; size?: number }): AdminUsersPage {
+    const page = params.page ?? 0
+    const size = params.size ?? ADMIN_USERS_PAGE_SIZE
     let filtered = users
-    if (params.status) filtered = filtered.filter(u => u.status === params.status)
+    if (params.status) {
+      const wanted = params.status === 'ACTIVE' ? 'Active' : 'Suspended'
+      filtered = filtered.filter(u => u.status === wanted)
+    }
     if (params.search) {
       const q = params.search.toLowerCase()
       filtered = filtered.filter(u => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q))
     }
-    const totalPages = Math.max(1, Math.ceil(filtered.length / USERS_PAGE_SIZE))
-    const start = (page - 1) * USERS_PAGE_SIZE
-    return { users: filtered.slice(start, start + USERS_PAGE_SIZE), page, totalPages }
+    const totalPages = Math.max(1, Math.ceil(filtered.length / size))
+    const start = page * size
+    return {
+      totalUsers: users.length,
+      activeUsers: users.filter(u => u.status === 'Active').length,
+      suspendedUsers: users.filter(u => u.status === 'Suspended').length,
+      users: filtered.slice(start, start + size),
+      currentPage: page,
+      totalPages,
+      totalItems: filtered.length,
+    }
   },
   getAuditLogs(): AdminAuditLogItem[] {
     return auditLogs
   },
-  setUserStatus(email: string, status: 'active' | 'suspended'): AdminUserSummary | undefined {
+  setUserStatus(email: string, status: 'Active' | 'Suspended'): AdminUserSummary | undefined {
     const u = users.find(u => u.email === email)
     if (u) u.status = status
     return u
