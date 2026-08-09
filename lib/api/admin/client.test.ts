@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { adminApiFetch, onAdminAuthExpired } from './client'
+import { adminApiFetch, onAdminAuthExpired, refreshAdminSession } from './client'
 import { getAdminAccessToken, setAdminAccessToken, clearAdminAccessToken } from './token'
 
 const originalFetch = global.fetch
@@ -62,5 +62,45 @@ describe('adminApiFetch', () => {
 
     expect(expired).toHaveBeenCalledTimes(1)
     expect(getAdminAccessToken()).toBeNull()
+  })
+})
+
+describe('refreshAdminSession', () => {
+  beforeEach(() => {
+    clearAdminAccessToken()
+  })
+  afterEach(() => {
+    global.fetch = originalFetch
+    vi.restoreAllMocks()
+  })
+
+  it('shares one in-flight request across concurrent callers', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ accessToken: 'shared-token' }), {
+        status: 200, headers: { 'content-type': 'application/json' },
+      })
+    )
+    global.fetch = fetchMock as unknown as typeof fetch
+
+    const [first, second] = await Promise.all([refreshAdminSession(), refreshAdminSession()])
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(first).toBe(true)
+    expect(second).toBe(true)
+    expect(getAdminAccessToken()).toBe('shared-token')
+  })
+
+  it('allows a new refresh once the in-flight one has settled', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ accessToken: 'tok' }), {
+        status: 200, headers: { 'content-type': 'application/json' },
+      })
+    )
+    global.fetch = fetchMock as unknown as typeof fetch
+
+    await refreshAdminSession()
+    await refreshAdminSession()
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 })
