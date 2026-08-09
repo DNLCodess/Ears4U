@@ -50,5 +50,24 @@ export async function adminMockFetch<T>(path: string, opts: Opts = {}): Promise<
     return delay(undefined as T)
   }
 
+  if (
+    method === 'POST' &&
+    (pathname === '/api/v1/admins/change-admin-password/initiate' ||
+      pathname === '/api/v1/admins/change-admin-password/verify' ||
+      pathname === '/api/v1/admins/resend-password-change-otp')
+  ) {
+    return delay({ message: 'ok' } as T)
+  }
+  if (pathname === '/api/v1/admins/change-admin-email/initiate' && method === 'POST') {
+    return delay({ message: 'ok' } as T)
+  }
+  if (pathname === '/api/v1/admins/change-admin-email/verify' && method === 'POST') {
+    const { newEmail } = (opts.body ?? {}) as { newEmail?: string }
+    return delay(adminMockStore.confirmEmailChange(newEmail ?? '') as T)
+  }
+  if (pathname === '/api/v1/admins/resend-email-change-otp' && method === 'POST') {
+    return delay({ message: 'ok' } as T)
+  }
+
   throw new Error(`adminMockFetch: no mock route for ${method} ${pathname}`)
 }

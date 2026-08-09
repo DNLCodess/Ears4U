@@ -15,4 +15,8 @@ export const adminMockStore = {
     profile = { ...profile, ...patch }
     return profile
   },
+  confirmEmailChange(newEmail: string): AdminProfile {
+    profile = { ...profile, email: newEmail }
+    return profile
+  },
 }

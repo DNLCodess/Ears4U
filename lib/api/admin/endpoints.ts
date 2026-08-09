@@ -57,3 +57,18 @@ export const getAdminProfile = () => adminApiFetch<AdminProfile>('/api/v1/admins
 export const updateAdminProfile = (p: UpdateAdminProfilePayload) =>
   adminApiFetch('/api/v1/admins/me', { method: 'PUT', body: p })
 export const deleteAdminAccount = () => adminApiFetch('/api/v1/admins/me', { method: 'DELETE' })
+
+export const changeAdminPasswordInitiate = (email: string, oldPassword: string) =>
+  adminApiFetch('/api/v1/admins/change-admin-password/initiate', { method: 'POST', body: { email, oldPassword } })
+export const changeAdminPasswordVerify = (email: string, oldPassword: string, newPassword: string, otp: string) =>
+  adminApiFetch('/api/v1/admins/change-admin-password/verify', {
+    method: 'POST', body: { email, oldPassword, newPassword, otp },
+  })
+export const resendAdminPasswordChangeOtp = () =>
+  adminApiFetch('/api/v1/admins/resend-password-change-otp', { method: 'POST' })
+export const changeAdminEmailInitiate = (oldEmail: string, newEmail: string) =>
+  adminApiFetch('/api/v1/admins/change-admin-email/initiate', { method: 'POST', body: { oldEmail, newEmail } })
+export const changeAdminEmailVerify = (oldEmail: string, newEmail: string, otp: string) =>
+  adminApiFetch('/api/v1/admins/change-admin-email/verify', { method: 'POST', body: { oldEmail, newEmail, otp } })
+export const resendAdminEmailChangeOtp = () =>
+  adminApiFetch('/api/v1/admins/resend-email-change-otp', { method: 'POST' })

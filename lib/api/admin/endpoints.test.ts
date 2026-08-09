@@ -94,3 +94,58 @@ describe('admin auth endpoints', () => {
     expect(getAdminAccessToken()).toBe('tok3')
   })
 })
+
+import {
+  changeAdminPasswordInitiate, changeAdminPasswordVerify, resendAdminPasswordChangeOtp,
+  changeAdminEmailInitiate, changeAdminEmailVerify, resendAdminEmailChangeOtp,
+} from './endpoints'
+
+describe('admin account credential changes', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('changeAdminPasswordInitiate posts email and oldPassword', async () => {
+    vi.spyOn(client, 'adminApiFetch').mockResolvedValue({ message: 'ok' })
+    await changeAdminPasswordInitiate('a@b.com', 'oldpw')
+    expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/change-admin-password/initiate', {
+      method: 'POST', body: { email: 'a@b.com', oldPassword: 'oldpw' },
+    })
+  })
+
+  it('changeAdminPasswordVerify posts email, oldPassword, newPassword, and otp', async () => {
+    vi.spyOn(client, 'adminApiFetch').mockResolvedValue({ message: 'ok' })
+    await changeAdminPasswordVerify('a@b.com', 'oldpw', 'newpw', '123456')
+    expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/change-admin-password/verify', {
+      method: 'POST', body: { email: 'a@b.com', oldPassword: 'oldpw', newPassword: 'newpw', otp: '123456' },
+    })
+  })
+
+  it('resendAdminPasswordChangeOtp posts with no body', async () => {
+    vi.spyOn(client, 'adminApiFetch').mockResolvedValue({ message: 'ok' })
+    await resendAdminPasswordChangeOtp()
+    expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/resend-password-change-otp', { method: 'POST' })
+  })
+
+  it('changeAdminEmailInitiate posts oldEmail and newEmail', async () => {
+    vi.spyOn(client, 'adminApiFetch').mockResolvedValue({ message: 'ok' })
+    await changeAdminEmailInitiate('old@b.com', 'new@b.com')
+    expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/change-admin-email/initiate', {
+      method: 'POST', body: { oldEmail: 'old@b.com', newEmail: 'new@b.com' },
+    })
+  })
+
+  it('changeAdminEmailVerify posts oldEmail, newEmail, and otp', async () => {
+    vi.spyOn(client, 'adminApiFetch').mockResolvedValue({ message: 'ok' })
+    await changeAdminEmailVerify('old@b.com', 'new@b.com', '654321')
+    expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/change-admin-email/verify', {
+      method: 'POST', body: { oldEmail: 'old@b.com', newEmail: 'new@b.com', otp: '654321' },
+    })
+  })
+
+  it('resendAdminEmailChangeOtp posts with no body', async () => {
+    vi.spyOn(client, 'adminApiFetch').mockResolvedValue({ message: 'ok' })
+    await resendAdminEmailChangeOtp()
+    expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/resend-email-change-otp', { method: 'POST' })
+  })
+})
