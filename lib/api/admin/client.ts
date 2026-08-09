@@ -104,7 +104,7 @@ export async function adminApiFetch<T = unknown>(path: string, opts: Opts = {}):
   return parsed as T
 }
 
-export async function adminApiFetchBlob(path: string): Promise<Blob> {
+export async function adminApiFetchBlob(path: string, coldStartMs: number = DEFAULT_COLD_START_MS): Promise<Blob> {
   if (MOCKS_ENABLED) {
     return adminMockFetch<Blob>(path, { method: 'GET' })
   }
@@ -120,6 +120,7 @@ export async function adminApiFetchBlob(path: string): Promise<Blob> {
     }
   }
 
+  const started = Date.now()
   let res = await doFetch()
 
   if (res.status === 401 || res.status === 403) {
@@ -138,7 +139,9 @@ export async function adminApiFetchBlob(path: string): Promise<Blob> {
   }
 
   if (!res.ok) {
-    throw new ApiError(res.status, friendlyFor(res.status))
+    const elapsed = Date.now() - started
+    const coldStart = elapsed >= coldStartMs && [500, 502, 503, 504].includes(res.status)
+    throw new ApiError(res.status, coldStart ? COLD_START_MESSAGE : friendlyFor(res.status), coldStart)
   }
 
   return res.blob()

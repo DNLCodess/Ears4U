@@ -6,6 +6,7 @@ import type { AdminDashboardMetrics } from '@/lib/api/admin/types'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorState } from '@/components/ui/error-state'
 import { Button } from '@/components/ui/button'
+import { ApiError } from '@/lib/api/errors'
 
 const METRIC_LABELS: { key: keyof AdminDashboardMetrics; label: string }[] = [
   { key: 'totalUsers', label: 'Total users' },
@@ -30,7 +31,7 @@ function triggerDownload(blob: Blob, filename: string) {
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)
-  URL.revokeObjectURL(url)
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
 export default function AdminDashboardPage() {
@@ -49,7 +50,11 @@ export default function AdminDashboardPage() {
           Export CSV
         </Button>
       </div>
-      {exportCsv.isError ? <p role="alert" className="text-sm text-clay">Could not export. Try again.</p> : null}
+      {exportCsv.isError ? (
+        <p role="alert" className="text-sm text-clay">
+          {exportCsv.error instanceof ApiError ? exportCsv.error.friendly : 'Something went wrong. Try again.'}
+        </p>
+      ) : null}
 
       {dashboard.isError ? (
         <ErrorState error={dashboard.error} retry={() => void dashboard.refetch()} />
@@ -63,14 +68,16 @@ export default function AdminDashboardPage() {
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-          {METRIC_LABELS.map(m => (
-            <div key={m.key} className="rounded-2xl bg-card px-4 py-3.5">
-              <p className="text-xs opacity-60">{m.label}</p>
-              <p className="mt-1 font-display text-2xl font-semibold">
-                {dashboard.data![m.key].toLocaleString()}
-              </p>
-            </div>
-          ))}
+          {METRIC_LABELS.map(m => {
+            const raw = dashboard.data![m.key]
+            const display = typeof raw === 'number' ? raw.toLocaleString() : '0'
+            return (
+              <div key={m.key} className="rounded-2xl bg-card px-4 py-3.5">
+                <p className="text-xs opacity-60">{m.label}</p>
+                <p className="mt-1 font-display text-2xl font-semibold">{display}</p>
+              </div>
+            )
+          })}
         </div>
       )}
 

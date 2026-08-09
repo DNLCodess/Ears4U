@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { adminApiFetch, adminApiFetchBlob, onAdminAuthExpired, refreshAdminSession } from './client'
 import { getAdminAccessToken, setAdminAccessToken, clearAdminAccessToken } from './token'
+import { ApiError, COLD_START_MESSAGE } from '../errors'
 
 const originalFetch = global.fetch
 
@@ -156,5 +157,18 @@ describe('adminApiFetchBlob', () => {
 
     await expect(adminApiFetchBlob('/api/v1/admins/dashboard/exports')).rejects.toThrow()
     expect(getAdminAccessToken()).toBeNull()
+  })
+
+  it('marks a slow 5xx response as a cold start', async () => {
+    const fetchMock = vi.fn().mockImplementation(
+      () => new Promise(resolve => setTimeout(() => resolve(new Response(null, { status: 503 })), 30))
+    )
+    global.fetch = fetchMock as unknown as typeof fetch
+
+    const err = (await adminApiFetchBlob('/api/v1/admins/dashboard/exports', 10).catch(e => e)) as ApiError
+
+    expect(err).toBeInstanceOf(ApiError)
+    expect(err.message).toBe(COLD_START_MESSAGE)
+    expect(err.coldStart).toBe(true)
   })
 })
