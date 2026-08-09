@@ -164,6 +164,7 @@ describe('admin account credential changes', () => {
 
 import {
   getAdminDashboard, getAdminEmergencyDashboard, getAdminBroadcastHistory, getAdminAnalytics, downloadAdminDashboardExport,
+  createAdminEmergencyResource, updateAdminEmergencyResource, deleteAdminEmergencyResource,
 } from './endpoints'
 
 describe('admin dashboard and analytics endpoints', () => {
@@ -181,6 +182,26 @@ describe('admin dashboard and analytics endpoints', () => {
     vi.spyOn(client, 'adminApiFetch').mockResolvedValue({ totalHotlines: 1, totalWebsites: 2, totalClinics: 0, activeCountriesCount: 1, resources: [] })
     await getAdminEmergencyDashboard()
     expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/emergency/dashboard')
+  })
+
+  it('createAdminEmergencyResource posts to the resources path with the input body', async () => {
+    const input = { name: 'New Hotline', country: 'USA', resourceType: 'HOTLINE' as const, contactInfo: '1-800-HELP', active: true }
+    vi.spyOn(client, 'adminApiFetch').mockResolvedValue({ id: 7, ...input })
+    await createAdminEmergencyResource(input)
+    expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/resources', { method: 'POST', body: input })
+  })
+
+  it('updateAdminEmergencyResource puts to the resources path with id and input body', async () => {
+    const input = { name: 'Updated Hotline', country: 'USA', resourceType: 'HOTLINE' as const, contactInfo: '1-800-UPDATED', active: false }
+    vi.spyOn(client, 'adminApiFetch').mockResolvedValue({ id: 5, ...input })
+    await updateAdminEmergencyResource(5, input)
+    expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/resources/5', { method: 'PUT', body: input })
+  })
+
+  it('deleteAdminEmergencyResource deletes the resource with the given id', async () => {
+    vi.spyOn(client, 'adminApiFetch').mockResolvedValue({ message: 'deleted' })
+    await deleteAdminEmergencyResource(3)
+    expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/resources/3', { method: 'DELETE' })
   })
 
   it('getAdminBroadcastHistory fetches the notifications path and unwraps the notifications array ' +

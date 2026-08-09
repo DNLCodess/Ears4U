@@ -6,6 +6,7 @@ import type {
   AdminDashboardMetrics, AdminBroadcastHistoryItem, AdminNotificationDashboardResponse,
   AdminAnalytics, AdminAnalyticsResponse,
   AdminUsersPage, AdminAuditLogItem, AdminEmergencyDashboard,
+  AdminEmergencyResource, AdminEmergencyResourceInput,
 } from './types'
 
 export async function adminLogin(email: string, password: string): Promise<void> {
@@ -100,6 +101,13 @@ export const resendAdminEmailChangeOtp = () =>
 export const getAdminDashboard = () => adminApiFetch<AdminDashboardMetrics>('/api/v1/admins/dashboard')
 export const getAdminEmergencyDashboard = () =>
   adminApiFetch<AdminEmergencyDashboard>('/api/v1/admins/emergency/dashboard')
+
+export const createAdminEmergencyResource = (input: AdminEmergencyResourceInput) =>
+  adminApiFetch<AdminEmergencyResource>('/api/v1/admins/resources', { method: 'POST', body: input })
+export const updateAdminEmergencyResource = (id: number, input: AdminEmergencyResourceInput) =>
+  adminApiFetch<AdminEmergencyResource>(`/api/v1/admins/resources/${id}`, { method: 'PUT', body: input })
+export const deleteAdminEmergencyResource = (id: number) =>
+  adminApiFetch(`/api/v1/admins/resources/${id}`, { method: 'DELETE' })
 
 // Real endpoint returns a NotificationDashboardResponse wrapper (totalSent/toAllUsers/
 // reEngagement/notifications), not a bare array - unwrap it here so callers keep working with a

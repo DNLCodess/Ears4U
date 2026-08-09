@@ -1,5 +1,5 @@
 import { adminMockStore } from './mock-store'
-import type { UpdateAdminProfilePayload } from './types'
+import type { UpdateAdminProfilePayload, AdminEmergencyResourceInput } from './types'
 
 const DELAY_MS = 350
 
@@ -75,6 +75,24 @@ export async function adminMockFetch<T>(path: string, opts: Opts = {}): Promise<
   if (pathname === '/api/v1/admins/emergency/dashboard' && method === 'GET') {
     return delay(adminMockStore.getEmergencyDashboard() as T)
   }
+
+  const resourceIdMatch = pathname.match(/^\/api\/v1\/admins\/resources\/(\d+)$/)
+  if (pathname === '/api/v1/admins/resources' && method === 'POST') {
+    const body = opts.body as AdminEmergencyResourceInput
+    return delay(adminMockStore.addResource(body) as T)
+  }
+  if (resourceIdMatch && method === 'PUT') {
+    const id = Number(resourceIdMatch[1])
+    const body = opts.body as AdminEmergencyResourceInput
+    const updated = adminMockStore.updateResource(id, body)
+    return delay(updated as T)
+  }
+  if (resourceIdMatch && method === 'DELETE') {
+    const id = Number(resourceIdMatch[1])
+    adminMockStore.deleteResource(id)
+    return delay({ message: 'Emergency resource deleted successfully.' } as T)
+  }
+
   if (pathname === '/api/v1/admins/dashboard/notifications' && method === 'GET') {
     return delay(adminMockStore.getBroadcastHistory() as T)
   }

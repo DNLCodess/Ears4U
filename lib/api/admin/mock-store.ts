@@ -3,6 +3,7 @@ import type {
   AdminProfile, AdminDashboardMetrics, AdminBroadcastHistoryItem, AdminNotificationDashboardResponse,
   AdminAnalyticsResponse, AdminTimeSeriesPoint, AdminAiUsagePoint,
   AdminUserSummary, AdminUsersPage, AdminAuditLogItem, AdminEmergencyResource, AdminEmergencyDashboard,
+  AdminEmergencyResourceInput,
 } from './types'
 
 let profile: AdminProfile = {
@@ -102,7 +103,6 @@ const emergencyResources: AdminEmergencyResource[] = [
   { id: 5, name: 'Lagos University Teaching Hospital', country: 'Nigeria', resourceType: 'CLINIC', contactInfo: '+234 1 545 0000', active: true },
   { id: 6, name: 'Old Community Line (retired)', country: 'Canada', resourceType: 'HOTLINE', contactInfo: '1-800-000-0000', active: false },
 ]
-// eslint-disable-next-line @typescript-eslint/no-unused-vars, prefer-const
 let nextResourceId = 7
 
 export const adminMockStore = {
@@ -181,5 +181,20 @@ export const adminMockStore = {
       activeCountriesCount: new Set(emergencyResources.filter(r => r.active).map(r => r.country)).size,
       resources: emergencyResources,
     }
+  },
+  addResource(input: AdminEmergencyResourceInput): AdminEmergencyResource {
+    const resource: AdminEmergencyResource = { id: nextResourceId++, ...input }
+    emergencyResources.push(resource)
+    return resource
+  },
+  updateResource(id: number, input: AdminEmergencyResourceInput): AdminEmergencyResource | null {
+    const existing = emergencyResources.find(r => r.id === id)
+    if (!existing) return null
+    Object.assign(existing, input)
+    return existing
+  },
+  deleteResource(id: number): void {
+    const index = emergencyResources.findIndex(r => r.id === id)
+    if (index !== -1) emergencyResources.splice(index, 1)
   },
 }
