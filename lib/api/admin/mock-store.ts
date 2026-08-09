@@ -1,5 +1,6 @@
 import type {
   AdminProfile, AdminDashboardMetrics, AdminBroadcastHistoryItem, AdminAnalytics, AdminAnalyticsPoint,
+  AdminUserSummary, AdminUsersPage, AdminAuditLogItem,
 } from './types'
 
 let profile: AdminProfile = {
@@ -51,6 +52,22 @@ const analytics: AdminAnalytics = {
   aiUsage: buildSeries(300, 60),
 }
 
+const users: AdminUserSummary[] = [
+  { id: 1, name: 'Grace Okafor', email: 'grace.okafor@example.com', status: 'active', joinedAt: '2026-02-14T00:00:00Z' },
+  { id: 2, name: 'Daniel Osei', email: 'daniel.osei@example.com', status: 'active', joinedAt: '2026-03-01T00:00:00Z' },
+  { id: 3, name: 'Amara Chukwu', email: 'amara.chukwu@example.com', status: 'suspended', joinedAt: '2026-01-20T00:00:00Z' },
+  { id: 4, name: 'Tomiwa Bello', email: 'tomiwa.bello@example.com', status: 'active', joinedAt: '2026-04-10T00:00:00Z' },
+  { id: 5, name: 'Chiamaka Eze', email: 'chiamaka.eze@example.com', status: 'active', joinedAt: '2026-05-02T00:00:00Z' },
+  { id: 6, name: 'Femi Adeyemi', email: 'femi.adeyemi@example.com', status: 'suspended', joinedAt: '2026-02-28T00:00:00Z' },
+]
+
+const auditLogs: AdminAuditLogItem[] = [
+  { id: 1, action: 'Suspended user amara.chukwu@example.com', actor: 'Ada Admin', createdAt: '2026-08-06T10:00:00Z' },
+  { id: 2, action: 'Sent broadcast to All users', actor: 'Ada Admin', createdAt: '2026-08-05T14:00:00Z' },
+]
+
+const USERS_PAGE_SIZE = 5
+
 export const adminMockStore = {
   getProfile(): AdminProfile {
     return profile
@@ -75,5 +92,20 @@ export const adminMockStore = {
   getExportCsv(): Blob {
     const rows = Object.entries(dashboardMetrics).map(([key, value]) => `${key},${value}`)
     return new Blob([`metric,value\n${rows.join('\n')}\n`], { type: 'text/csv' })
+  },
+  getUsers(params: { search?: string; status?: 'active' | 'suspended'; page?: number }): AdminUsersPage {
+    const page = params.page ?? 1
+    let filtered = users
+    if (params.status) filtered = filtered.filter(u => u.status === params.status)
+    if (params.search) {
+      const q = params.search.toLowerCase()
+      filtered = filtered.filter(u => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q))
+    }
+    const totalPages = Math.max(1, Math.ceil(filtered.length / USERS_PAGE_SIZE))
+    const start = (page - 1) * USERS_PAGE_SIZE
+    return { users: filtered.slice(start, start + USERS_PAGE_SIZE), page, totalPages }
+  },
+  getAuditLogs(): AdminAuditLogItem[] {
+    return auditLogs
   },
 }

@@ -185,3 +185,29 @@ describe('admin dashboard and analytics endpoints', () => {
     expect(result).toBe(fakeBlob)
   })
 })
+
+import { getAdminUsers, getAdminAuditLogs } from './endpoints'
+
+describe('admin users read endpoints', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('getAdminUsers builds a query string from the provided filters', async () => {
+    vi.spyOn(client, 'adminApiFetch').mockResolvedValue({ users: [], page: 1, totalPages: 1 })
+    await getAdminUsers({ search: 'ada', status: 'active', page: 2 })
+    expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/users?search=ada&status=active&page=2')
+  })
+
+  it('getAdminUsers omits unset filters from the query string', async () => {
+    vi.spyOn(client, 'adminApiFetch').mockResolvedValue({ users: [], page: 1, totalPages: 1 })
+    await getAdminUsers()
+    expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/users')
+  })
+
+  it('getAdminAuditLogs fetches the audit-logs path with no body', async () => {
+    vi.spyOn(client, 'adminApiFetch').mockResolvedValue([])
+    await getAdminAuditLogs()
+    expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/audit-logs')
+  })
+})

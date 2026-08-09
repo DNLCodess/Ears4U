@@ -82,5 +82,19 @@ export async function adminMockFetch<T>(path: string, opts: Opts = {}): Promise<
     return delay(adminMockStore.getExportCsv() as T)
   }
 
+  if (pathname === '/api/v1/admins/users' && method === 'GET') {
+    const queryString = path.split('?')[1] ?? ''
+    const params = new URLSearchParams(queryString)
+    const status = params.get('status')
+    return delay(adminMockStore.getUsers({
+      search: params.get('search') ?? undefined,
+      status: status === 'active' || status === 'suspended' ? status : undefined,
+      page: params.get('page') ? Number(params.get('page')) : undefined,
+    }) as T)
+  }
+  if (pathname === '/api/v1/admins/audit-logs' && method === 'GET') {
+    return delay(adminMockStore.getAuditLogs() as T)
+  }
+
   throw new Error(`adminMockFetch: no mock route for ${method} ${pathname}`)
 }

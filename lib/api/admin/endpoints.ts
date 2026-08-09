@@ -3,6 +3,7 @@ import { setAdminAccessToken, clearAdminAccessToken } from './token'
 import type {
   AdminProfile, AdminRegisterPayload, UpdateAdminProfilePayload,
   AdminDashboardMetrics, AdminBroadcastHistoryItem, AdminAnalytics,
+  AdminUserSummary, AdminUsersPage, AdminAuditLogItem,
 } from './types'
 
 export async function adminLogin(email: string, password: string): Promise<void> {
@@ -81,3 +82,13 @@ export const getAdminBroadcastHistory = () =>
   adminApiFetch<AdminBroadcastHistoryItem[]>('/api/v1/admins/dashboard/notifications')
 export const getAdminAnalytics = () => adminApiFetch<AdminAnalytics>('/api/v1/admins/anaytics')
 export const downloadAdminDashboardExport = () => adminApiFetchBlob('/api/v1/admins/dashboard/exports')
+
+export function getAdminUsers(params: { search?: string; status?: 'active' | 'suspended'; page?: number } = {}) {
+  const qs = new URLSearchParams()
+  if (params.search) qs.set('search', params.search)
+  if (params.status) qs.set('status', params.status)
+  if (params.page) qs.set('page', String(params.page))
+  const query = qs.toString()
+  return adminApiFetch<AdminUsersPage>(`/api/v1/admins/users${query ? `?${query}` : ''}`)
+}
+export const getAdminAuditLogs = () => adminApiFetch<AdminAuditLogItem[]>('/api/v1/admins/audit-logs')

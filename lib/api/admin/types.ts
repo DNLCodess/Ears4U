@@ -33,3 +33,21 @@ export interface AdminAnalytics {
   moods: AdminAnalyticsPoint[]
   aiUsage: AdminAnalyticsPoint[]
 }
+export interface AdminUserSummary {
+  id: number
+  name: string
+  email: string
+  status: 'active' | 'suspended'
+  joinedAt: string
+}
+export interface AdminUsersPage {
+  users: AdminUserSummary[]
+  page: number
+  totalPages: number
+}
+export interface AdminAuditLogItem {
+  id: number
+  action: string
+  actor: string
+  createdAt: string
+}

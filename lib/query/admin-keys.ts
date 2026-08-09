@@ -3,4 +3,6 @@ export const adminQk = {
   dashboard: ['admin-dashboard'] as const,
   broadcastHistory: ['admin-broadcast-history'] as const,
   analytics: ['admin-analytics'] as const,
+  users: ['admin-users'] as const,
+  auditLogs: ['admin-audit-logs'] as const,
 }
