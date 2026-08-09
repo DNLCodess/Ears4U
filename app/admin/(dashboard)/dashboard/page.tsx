@@ -11,10 +11,9 @@ import { ApiError } from '@/lib/api/errors'
 const METRIC_LABELS: { key: keyof AdminDashboardMetrics; label: string }[] = [
   { key: 'totalUsers', label: 'Total users' },
   { key: 'activeUsers', label: 'Active users' },
-  { key: 'newSignups', label: 'New signups' },
-  { key: 'checkInsLogged', label: 'Check-ins logged' },
-  { key: 'emergencyResourceViews', label: 'Emergency resource views' },
-  { key: 'suspendedAccounts', label: 'Suspended accounts' },
+  { key: 'journalEntries', label: 'Journal entries' },
+  { key: 'moodLogs', label: 'Mood logs recorded' },
+  { key: 'aiChats', label: 'AI chat sessions' },
 ]
 
 export function formatSentAt(iso: string): string {
@@ -96,12 +95,15 @@ export default function AdminDashboardPage() {
         ) : (
           <div className="flex flex-col divide-y divide-fir/10 rounded-2xl bg-card px-4">
             {broadcasts.data.map(b => (
-              <div key={b.id} className="flex items-center justify-between gap-3 py-3">
+              <div key={b.formattedId} className="flex items-center justify-between gap-3 py-3">
                 <div className="min-w-0">
-                  <p className="truncate text-[14px]">{b.message}</p>
-                  <p className="text-xs opacity-55">{b.segment}</p>
+                  <p className="truncate text-[14px] font-medium">{b.title}</p>
+                  <p className="truncate text-xs opacity-55">{b.message}</p>
                 </div>
-                <span className="flex-none text-xs opacity-50">{formatSentAt(b.sentAt)}</span>
+                <div className="flex flex-none flex-col items-end gap-0.5">
+                  <span className="text-xs opacity-50">{formatSentAt(b.sentAt)}</span>
+                  <span className="text-[11px] opacity-40">{b.segment}</span>
+                </div>
               </div>
             ))}
           </div>

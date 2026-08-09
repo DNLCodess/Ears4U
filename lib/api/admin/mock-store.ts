@@ -1,5 +1,6 @@
 import type {
-  AdminProfile, AdminDashboardMetrics, AdminBroadcastHistoryItem, AdminAnalytics, AdminAnalyticsPoint,
+  AdminProfile, AdminDashboardMetrics, AdminBroadcastHistoryItem, AdminNotificationDashboardResponse,
+  AdminAnalyticsResponse, AdminTimeSeriesPoint, AdminAiUsagePoint,
   AdminUserSummary, AdminUsersPage, AdminAuditLogItem,
 } from './types'
 
@@ -13,43 +14,67 @@ let profile: AdminProfile = {
 const dashboardMetrics: AdminDashboardMetrics = {
   totalUsers: 4820,
   activeUsers: 1264,
-  newSignups: 58,
-  checkInsLogged: 973,
-  emergencyResourceViews: 41,
-  suspendedAccounts: 3,
+  journalEntries: 973,
+  moodLogs: 2140,
+  aiChats: 356,
 }
 
-const broadcastHistory: AdminBroadcastHistoryItem[] = [
+const broadcastNotifications: AdminBroadcastHistoryItem[] = [
   {
-    id: 1,
+    formattedId: 'NTF-0001',
+    title: 'Service disruption notice',
     message: 'We are aware of the recent slow load times and are working on a fix.',
-    segment: 'All users',
+    segment: 'ALL_USERS',
     sentAt: '2026-08-05T14:00:00Z',
   },
   {
-    id: 2,
+    formattedId: 'NTF-0002',
+    title: 'New breathing exercise',
     message: 'New breathing exercise added to the check-in flow.',
-    segment: 'Active users',
+    segment: 'RE_ENGAGEMENT',
     sentAt: '2026-07-28T09:30:00Z',
   },
 ]
 
-function buildSeries(base: number, spread: number, days = 30): AdminAnalyticsPoint[] {
-  const points: AdminAnalyticsPoint[] = []
+const broadcastHistory: AdminNotificationDashboardResponse = {
+  totalSent: 128,
+  toAllUsers: 96,
+  reEngagement: 32,
+  notifications: broadcastNotifications,
+}
+
+function buildTimeSeries(base: number, spread: number, days = 30): AdminTimeSeriesPoint[] {
+  const points: AdminTimeSeriesPoint[] = []
   const start = new Date('2026-07-11T00:00:00Z')
   for (let i = 0; i < days; i++) {
     const d = new Date(start)
     d.setUTCDate(d.getUTCDate() + i)
-    const value = Math.round(base + Math.sin(i / 3) * spread + i * (spread / days))
-    points.push({ date: d.toISOString().slice(0, 10), value })
+    const count = Math.round(base + Math.sin(i / 3) * spread + i * (spread / days))
+    points.push({ date: d.toISOString().slice(0, 10), count })
   }
   return points
 }
 
-const analytics: AdminAnalytics = {
-  userGrowth: buildSeries(4200, 40),
-  moods: buildSeries(6, 1.5),
-  aiUsage: buildSeries(300, 60),
+function buildAiUsageSeries(base: number, spread: number, days = 30): AdminAiUsagePoint[] {
+  return buildTimeSeries(base, spread, days).map(p => ({
+    date: p.date,
+    requests: p.count,
+    successful: Math.round(p.count * 0.92),
+  }))
+}
+
+const analytics: AdminAnalyticsResponse = {
+  userGrowth: buildTimeSeries(4200, 40),
+  dailyActiveUsers: buildTimeSeries(1100, 90),
+  moodStatistics: [
+    { mood: 'Happy', count: 412 },
+    { mood: 'Calm', count: 356 },
+    { mood: 'Anxious', count: 198 },
+    { mood: 'Sad', count: 143 },
+    { mood: 'Angry', count: 61 },
+  ],
+  journalStatistics: buildTimeSeries(80, 20),
+  aiUsageStatistics: buildAiUsageSeries(300, 60),
 }
 
 const users: AdminUserSummary[] = [
@@ -83,10 +108,10 @@ export const adminMockStore = {
   getDashboard(): AdminDashboardMetrics {
     return dashboardMetrics
   },
-  getBroadcastHistory(): AdminBroadcastHistoryItem[] {
+  getBroadcastHistory(): AdminNotificationDashboardResponse {
     return broadcastHistory
   },
-  getAnalytics(): AdminAnalytics {
+  getAnalytics(): AdminAnalyticsResponse {
     return analytics
   },
   getExportCsv(): Blob {

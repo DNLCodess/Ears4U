@@ -177,16 +177,33 @@ describe('admin dashboard and analytics endpoints', () => {
     expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/dashboard')
   })
 
-  it('getAdminBroadcastHistory fetches the notifications path', async () => {
-    vi.spyOn(client, 'adminApiFetch').mockResolvedValue([])
-    await getAdminBroadcastHistory()
+  it('getAdminBroadcastHistory fetches the notifications path and unwraps the notifications array ' +
+    'from the wrapped NotificationDashboardResponse', async () => {
+    vi.spyOn(client, 'adminApiFetch').mockResolvedValue({
+      totalSent: 2, toAllUsers: 1, reEngagement: 1,
+      notifications: [{ formattedId: 'NTF-0001', title: 'Hi', message: 'msg', segment: 'ALL_USERS', sentAt: '2026-08-05T14:00:00Z' }],
+    })
+    const result = await getAdminBroadcastHistory()
     expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/dashboard/notifications')
+    expect(result).toEqual([{ formattedId: 'NTF-0001', title: 'Hi', message: 'msg', segment: 'ALL_USERS', sentAt: '2026-08-05T14:00:00Z' }])
   })
 
-  it('getAdminAnalytics fetches the anaytics path exactly as documented, missing the l', async () => {
-    vi.spyOn(client, 'adminApiFetch').mockResolvedValue({ userGrowth: [], moods: [], aiUsage: [] })
-    await getAdminAnalytics()
+  it('getAdminAnalytics fetches the anaytics path exactly as documented, missing the l, and maps ' +
+    'count/mood/requests onto the { date, value } chart shape', async () => {
+    vi.spyOn(client, 'adminApiFetch').mockResolvedValue({
+      userGrowth: [{ date: '2026-08-01', count: 10 }],
+      dailyActiveUsers: [],
+      moodStatistics: [{ mood: 'Happy', count: 5 }],
+      journalStatistics: [],
+      aiUsageStatistics: [{ date: '2026-08-01', requests: 20, successful: 18 }],
+    })
+    const result = await getAdminAnalytics()
     expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/anaytics')
+    expect(result).toEqual({
+      userGrowth: [{ date: '2026-08-01', value: 10 }],
+      moods: [{ date: 'Happy', value: 5 }],
+      aiUsage: [{ date: '2026-08-01', value: 20 }],
+    })
   })
 
   it('downloadAdminDashboardExport fetches the exports path via the blob client', async () => {

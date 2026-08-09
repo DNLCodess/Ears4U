@@ -57,14 +57,19 @@ function mockMutation(state: Partial<{ isPending: boolean; isError: boolean; err
 const METRICS: AdminDashboardMetrics = {
   totalUsers: 1200,
   activeUsers: 800,
-  newSignups: 45,
-  checkInsLogged: 2300,
-  emergencyResourceViews: 12,
-  suspendedAccounts: 3,
+  journalEntries: 2300,
+  moodLogs: 540,
+  aiChats: 96,
 }
 
 const BROADCASTS: AdminBroadcastHistoryItem[] = [
-  { id: 1, message: 'We shipped a new feature', segment: 'All users', sentAt: '2026-08-05T14:00:00Z' },
+  {
+    formattedId: 'NTF-0001',
+    title: 'We shipped a new feature',
+    message: 'Details about the new feature we just shipped.',
+    segment: 'ALL_USERS',
+    sentAt: '2026-08-05T14:00:00Z',
+  },
 ]
 
 describe('AdminDashboardPage', () => {
@@ -115,7 +120,18 @@ describe('AdminDashboardPage', () => {
     expect(screen.getByText('1,200')).toBeInTheDocument()
     expect(screen.getByText('800')).toBeInTheDocument()
     expect(screen.getByText('We shipped a new feature')).toBeInTheDocument()
-    expect(screen.getByText('All users')).toBeInTheDocument()
+    expect(screen.getByText('Details about the new feature we just shipped.')).toBeInTheDocument()
+    expect(screen.getByText('ALL_USERS')).toBeInTheDocument()
+  })
+
+  it('renders exactly five dashboard metric cards, not six', () => {
+    mockQueries({ dashboard: { data: METRICS }, broadcasts: { data: BROADCASTS } })
+    render(<AdminDashboardPage />)
+    expect(screen.getByText('Total users')).toBeInTheDocument()
+    expect(screen.getByText('Active users')).toBeInTheDocument()
+    expect(screen.getByText('Journal entries')).toBeInTheDocument()
+    expect(screen.getByText('Mood logs recorded')).toBeInTheDocument()
+    expect(screen.getByText('AI chat sessions')).toBeInTheDocument()
   })
 
   it('renders "No broadcasts sent yet." when the broadcast list is empty', () => {

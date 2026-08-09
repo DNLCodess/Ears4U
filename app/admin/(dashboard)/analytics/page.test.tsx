@@ -49,7 +49,9 @@ function mockAnalyticsQuery(state: QueryState<AdminAnalytics>) {
 
 const ANALYTICS: AdminAnalytics = {
   userGrowth: [{ date: '2026-08-01', value: 10 }, { date: '2026-08-02', value: 20 }],
-  moods: [{ date: '2026-08-01', value: 5 }, { date: '2026-08-02', value: 7 }],
+  // Moods carries mood category names in the date-label slot (see AdminAnalyticsPoint's doc
+  // comment in types.ts) rather than real dates - this is the mapped, chart-ready shape.
+  moods: [{ date: 'Happy', value: 5 }, { date: 'Anxious', value: 7 }],
   aiUsage: [{ date: '2026-08-01', value: 1 }, { date: '2026-08-02', value: 3 }],
 }
 

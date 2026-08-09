@@ -2,7 +2,8 @@ import { adminApiFetch, adminApiFetchBlob } from './client'
 import { setAdminAccessToken, clearAdminAccessToken } from './token'
 import type {
   AdminProfile, AdminRegisterPayload, UpdateAdminProfilePayload,
-  AdminDashboardMetrics, AdminBroadcastHistoryItem, AdminAnalytics,
+  AdminDashboardMetrics, AdminBroadcastHistoryItem, AdminNotificationDashboardResponse,
+  AdminAnalytics, AdminAnalyticsResponse,
   AdminUsersPage, AdminAuditLogItem,
 } from './types'
 
@@ -96,9 +97,32 @@ export const resendAdminEmailChangeOtp = () =>
   adminApiFetch('/api/v1/admins/resend-email-change-otp', { method: 'POST' })
 
 export const getAdminDashboard = () => adminApiFetch<AdminDashboardMetrics>('/api/v1/admins/dashboard')
-export const getAdminBroadcastHistory = () =>
-  adminApiFetch<AdminBroadcastHistoryItem[]>('/api/v1/admins/dashboard/notifications')
-export const getAdminAnalytics = () => adminApiFetch<AdminAnalytics>('/api/v1/admins/anaytics')
+
+// Real endpoint returns a NotificationDashboardResponse wrapper (totalSent/toAllUsers/
+// reEngagement/notifications), not a bare array - unwrap it here so callers keep working with a
+// plain AdminBroadcastHistoryItem[].
+export async function getAdminBroadcastHistory(): Promise<AdminBroadcastHistoryItem[]> {
+  const r = await adminApiFetch<AdminNotificationDashboardResponse>('/api/v1/admins/dashboard/notifications')
+  return r.notifications
+}
+
+// Path is genuinely misspelled on the backend ("/anaytics", missing the "l") - do not "fix" it,
+// there is no "/analytics" route. Maps the real wire fields onto the { date, value } shape
+// TimeSeriesChart already expects (see AdminAnalyticsPoint's doc comment in types.ts for why this
+// is safe for the Moods category chart specifically).
+export async function getAdminAnalytics(): Promise<AdminAnalytics> {
+  const r = await adminApiFetch<AdminAnalyticsResponse>('/api/v1/admins/anaytics')
+  // dailyActiveUsers and journalStatistics are also present on this response but are out of this
+  // phase's 3-chart scope (User growth, Moods, AI usage) - left unconsumed for a future phase.
+  return {
+    userGrowth: r.userGrowth.map(p => ({ date: p.date, value: p.count })),
+    moods: r.moodStatistics.map(p => ({ date: p.mood, value: p.count })),
+    // `successful` is also available per point on aiUsageStatistics but not currently charted -
+    // a future phase could add it as a second series or a success-rate view.
+    aiUsage: r.aiUsageStatistics.map(p => ({ date: p.date, value: p.requests })),
+  }
+}
+
 export const downloadAdminDashboardExport = () => adminApiFetchBlob('/api/v1/admins/dashboard/exports')
 
 export function getAdminUsers(params: { search?: string; status?: 'active' | 'suspended'; page?: number } = {}) {
