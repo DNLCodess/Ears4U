@@ -53,7 +53,13 @@ function StatusAction({ user }: { user: AdminUserSummary }) {
           >
             {isActive ? 'Confirm suspend' : 'Confirm reactivate'}
           </Button>
-          <Button type="button" variant="ghost" onClick={() => setConfirming(false)}>Cancel</Button>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => { mutation.reset(); setConfirming(false) }}
+          >
+            Cancel
+          </Button>
         </div>
       </div>
     )
@@ -94,34 +100,40 @@ function ChangeEmailForm({ user }: { user: AdminUserSummary }) {
   )
 }
 
-function FailoverOtp({ user }: { user: AdminUserSummary }) {
-  const [activeKind, setActiveKind] = useState<OtpKind | null>(null)
+function FailoverOtpButton({ user, kind, label }: { user: AdminUserSummary; kind: OtpKind; label: string }) {
+  // Each row owns its own mutation so generating one code doesn't clear or
+  // hide another row's already-displayed code or error.
   const mutation = useMutation({
-    mutationFn: (kind: OtpKind) => generateAdminUserOtp(user.email, kind),
-    onMutate: (kind: OtpKind) => setActiveKind(kind),
+    mutationFn: () => generateAdminUserOtp(user.email, kind),
   })
 
   return (
+    <div className="flex flex-col gap-1.5">
+      <Button
+        type="button"
+        variant="ghost"
+        busy={mutation.isPending}
+        onClick={() => mutation.mutate()}
+      >
+        {label}
+      </Button>
+      {mutation.isSuccess ? (
+        <p className="text-sm text-leaf">
+          Code: <span className="font-display font-semibold">{mutation.data?.otp}</span>
+        </p>
+      ) : null}
+      {mutation.isError ? (
+        <p role="alert" className="text-sm text-clay">{errorMessage(mutation.error)}</p>
+      ) : null}
+    </div>
+  )
+}
+
+function FailoverOtp({ user }: { user: AdminUserSummary }) {
+  return (
     <div className="flex flex-col gap-3">
       {OTP_KINDS.map(({ kind, label }) => (
-        <div key={kind} className="flex flex-col gap-1.5">
-          <Button
-            type="button"
-            variant="ghost"
-            busy={mutation.isPending && activeKind === kind}
-            onClick={() => mutation.mutate(kind)}
-          >
-            {label}
-          </Button>
-          {mutation.isSuccess && activeKind === kind ? (
-            <p className="text-sm text-leaf">
-              Code: <span className="font-display font-semibold">{mutation.data?.otp}</span>
-            </p>
-          ) : null}
-          {mutation.isError && activeKind === kind ? (
-            <p role="alert" className="text-sm text-clay">{errorMessage(mutation.error)}</p>
-          ) : null}
-        </div>
+        <FailoverOtpButton key={kind} user={user} kind={kind} label={label} />
       ))}
     </div>
   )
@@ -135,7 +147,7 @@ export function UserManageSheet({ user, open, onClose }: {
   if (!user) return null
   return (
     <Sheet open={open} onClose={onClose} title={user.name}>
-      <div className="flex flex-col gap-6">
+      <div key={user.id} className="flex flex-col gap-6">
         <div>
           <p className="mb-2 text-sm font-semibold opacity-70">Status</p>
           <StatusAction user={user} />
