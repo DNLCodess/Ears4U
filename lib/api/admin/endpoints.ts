@@ -3,7 +3,7 @@ import { setAdminAccessToken, clearAdminAccessToken } from './token'
 import type {
   AdminProfile, AdminRegisterPayload, UpdateAdminProfilePayload,
   AdminDashboardMetrics, AdminBroadcastHistoryItem, AdminAnalytics,
-  AdminUserSummary, AdminUsersPage, AdminAuditLogItem,
+  AdminUsersPage, AdminAuditLogItem,
 } from './types'
 
 export async function adminLogin(email: string, password: string): Promise<void> {
