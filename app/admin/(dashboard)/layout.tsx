@@ -2,8 +2,9 @@
 import { useEffect, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { QueryProvider } from '@/lib/query/provider'
-import { onAdminAuthExpired } from '@/lib/api/admin/client'
+import { onAdminAuthExpired, refreshAdminSession } from '@/lib/api/admin/client'
 import { getAdminAccessToken } from '@/lib/api/admin/token'
+import { MOCKS_ENABLED } from '@/lib/mocks'
 import { AdminShell } from '@/components/admin/shell'
 
 export default function AdminDashboardLayout({ children }: { children: ReactNode }) {
@@ -12,7 +13,14 @@ export default function AdminDashboardLayout({ children }: { children: ReactNode
     onAdminAuthExpired(() => router.replace('/admin/login'))
   }, [router])
   useEffect(() => {
-    if (!getAdminAccessToken()) router.replace('/admin/login')
+    if (getAdminAccessToken()) return
+    if (MOCKS_ENABLED) {
+      router.replace('/admin/login')
+      return
+    }
+    void refreshAdminSession().then(ok => {
+      if (!ok) router.replace('/admin/login')
+    })
   }, [router])
   return (
     <QueryProvider>

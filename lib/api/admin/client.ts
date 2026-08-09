@@ -24,7 +24,7 @@ async function parseBody(res: Response): Promise<unknown> {
   try { return JSON.parse(text) } catch { return undefined }
 }
 
-async function refresh(): Promise<boolean> {
+export async function refreshAdminSession(): Promise<boolean> {
   let res: Response
   try {
     res = await fetch(`${BASE}/api/v1/auth/admin-refresh`, { method: 'POST', credentials: 'include' })
@@ -66,7 +66,7 @@ export async function adminApiFetch<T = unknown>(path: string, opts: Opts = {}):
   let res = await doFetch()
 
   if (auth && (res.status === 401 || res.status === 403)) {
-    const ok = await refresh()
+    const ok = await refreshAdminSession()
     if (ok) {
       res = await doFetch()
       if (res.status === 401 || res.status === 403) {
