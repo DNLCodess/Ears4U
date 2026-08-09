@@ -28,6 +28,7 @@ export async function adminMockFetch<T>(path: string, opts: Opts = {}): Promise<
   if (
     method === 'POST' &&
     (pathname === '/api/v1/admins/resend-registration-otp' ||
+      pathname === '/api/v1/admins/resend-recovery-otp' ||
       pathname === '/api/v1/auth/forgot-admin-password' ||
       pathname === '/api/v1/auth/resend-admin-forgotten-password-otp' ||
       pathname === '/api/v1/auth/reset-admin-password' ||

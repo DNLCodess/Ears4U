@@ -50,6 +50,9 @@ export async function adminRecoveryConfirm(email: string, otp: string): Promise<
   if (token) setAdminAccessToken(token)
 }
 
+export const resendAdminRecoveryOtp = (email: string) =>
+  adminApiFetch('/api/v1/admins/resend-recovery-otp', { method: 'POST', body: { adminEmail: email }, auth: false })
+
 export const getAdminProfile = () => adminApiFetch<AdminProfile>('/api/v1/admins/me')
 export const updateAdminProfile = (p: UpdateAdminProfilePayload) =>
   adminApiFetch('/api/v1/admins/me', { method: 'PUT', body: p })
