@@ -26,7 +26,7 @@ export default function AdminRegisterPage() {
     if (!valid) return
     setBusy(true); setError(null)
     try {
-      await registerAdmin({ name, email, password })
+      await registerAdmin({ adminName: name, adminEmail: email, adminPassword: password })
       router.push(`/admin/verify?email=${encodeURIComponent(email)}`)
     } catch (err) {
       setError(err instanceof ApiError ? err.friendly : 'Something went wrong. Try again.')

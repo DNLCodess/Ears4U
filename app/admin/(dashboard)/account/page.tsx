@@ -49,7 +49,7 @@ function RowButton({ label, onClick }: { label: string; onClick: () => void }) {
 }
 
 function Header({ profile }: { profile: AdminProfile }) {
-  const initial = profile.name.trim().charAt(0).toUpperCase() || '?'
+  const initial = profile.adminName.trim().charAt(0).toUpperCase() || '?'
   return (
     <div className="flex items-center gap-4 px-1">
       <span className="flex h-14 w-14 flex-none items-center justify-center rounded-full bg-fir
@@ -57,8 +57,8 @@ function Header({ profile }: { profile: AdminProfile }) {
         {initial}
       </span>
       <div className="min-w-0">
-        <p className="truncate font-display text-lg font-semibold">{profile.name}</p>
-        <p className="truncate text-sm opacity-70">{profile.email}</p>
+        <p className="truncate font-display text-lg font-semibold">{profile.adminName}</p>
+        <p className="truncate text-sm opacity-70">{profile.adminEmail}</p>
       </div>
     </div>
   )
@@ -66,10 +66,10 @@ function Header({ profile }: { profile: AdminProfile }) {
 
 function ProfileEditor({ profile, onDone }: { profile: AdminProfile; onDone: () => void }) {
   const queryClient = useQueryClient()
-  const [name, setName] = useState(profile.name)
+  const [name, setName] = useState(profile.adminName)
 
   const save = useMutation({
-    mutationFn: () => updateAdminProfile({ name }),
+    mutationFn: () => updateAdminProfile({ adminName: name }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: adminQk.profile })
       onDone()
@@ -293,10 +293,10 @@ export default function AdminAccountPage() {
         <ProfileEditor profile={data} onDone={() => setSheet(null)} />
       </Sheet>
       <Sheet open={sheet === 'password'} onClose={() => setSheet(null)} title="Change password">
-        <ChangePasswordFlow email={data.email} onDone={() => setSheet(null)} />
+        <ChangePasswordFlow email={data.adminEmail} onDone={() => setSheet(null)} />
       </Sheet>
       <Sheet open={sheet === 'email'} onClose={() => setSheet(null)} title="Change email">
-        <ChangeEmailFlow email={data.email} onDone={() => setSheet(null)} />
+        <ChangeEmailFlow email={data.adminEmail} onDone={() => setSheet(null)} />
       </Sheet>
       <Sheet open={sheet === 'delete'} onClose={() => setSheet(null)} title="Delete your admin account?">
         <DeleteAccountFlow />

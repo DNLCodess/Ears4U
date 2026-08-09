@@ -8,7 +8,7 @@ import type {
 
 export async function adminLogin(email: string, password: string): Promise<void> {
   const r = await adminApiFetch<{ accessToken: string }>('/api/v1/auth/admin-login', {
-    method: 'POST', body: { adminEmail: email, password }, auth: false,
+    method: 'POST', body: { username: email, password }, auth: false,
   })
   setAdminAccessToken(r.accessToken)
 }
@@ -30,32 +30,46 @@ export async function verifyAdmin(email: string, otp: string): Promise<void> {
 }
 
 export const resendAdminRegistrationOtp = (email: string) =>
-  adminApiFetch('/api/v1/admins/resend-registration-otp', { method: 'POST', body: { adminEmail: email }, auth: false })
+  adminApiFetch(`/api/v1/admins/resend-registration-otp?adminEmail=${encodeURIComponent(email)}`, {
+    method: 'POST', auth: false,
+  })
 
 export const forgotAdminPassword = (email: string) =>
-  adminApiFetch('/api/v1/auth/forgot-admin-password', { method: 'POST', body: { adminEmail: email }, auth: false })
+  adminApiFetch(`/api/v1/auth/forgot-admin-password?adminEmail=${encodeURIComponent(email)}`, {
+    method: 'POST', auth: false,
+  })
 
 export const resendAdminForgottenPasswordOtp = (email: string) =>
-  adminApiFetch('/api/v1/auth/resend-admin-forgotten-password-otp', { method: 'POST', body: { adminEmail: email }, auth: false })
+  adminApiFetch(`/api/v1/auth/resend-admin-forgotten-password-otp?adminEmail=${encodeURIComponent(email)}`, {
+    method: 'POST', auth: false,
+  })
 
 export const resetAdminPassword = (email: string, otp: string, newPassword: string) =>
   adminApiFetch('/api/v1/auth/reset-admin-password', {
-    method: 'POST', body: { adminEmail: email, otp, newPassword }, auth: false,
+    method: 'POST', body: { email, otp, newPassword }, auth: false,
   })
 
 export const adminRecoveryInitiate = (email: string) =>
-  adminApiFetch('/api/v1/auth/recovery/admin/initiate', { method: 'POST', body: { adminEmail: email }, auth: false })
+  adminApiFetch(`/api/v1/auth/recovery/admin/initiate?adminEmail=${encodeURIComponent(email)}`, {
+    method: 'POST', auth: false,
+  })
 
 export async function adminRecoveryConfirm(email: string, otp: string): Promise<void> {
-  const r = await adminApiFetch<{ accessToken?: string; token?: string }>('/api/v1/auth/recovery/admin/confirm', {
-    method: 'POST', body: { adminEmail: email, otp }, auth: false,
-  })
+  const r = await adminApiFetch<{ accessToken?: string; token?: string }>(
+    `/api/v1/auth/recovery/admin/confirm?adminEmail=${encodeURIComponent(email)}&otp=${encodeURIComponent(otp)}`,
+    { method: 'POST', auth: false },
+  )
   const token = r?.accessToken ?? r?.token
   if (token) setAdminAccessToken(token)
 }
 
+// Backend inconsistency (SecurityConfig): /api/v1/admins/resend-recovery-otp is NOT in the
+// permitAll matcher list despite living under a "recovery" flow meant for a locked-out, logged-out
+// admin. It requires a valid ADMIN JWT, so this call will 401 for a logged-out admin on the real
+// backend. This cannot be worked around from the frontend - `auth` is intentionally left at its
+// default (true) to match what the backend actually requires; do not set `auth: false` here.
 export const resendAdminRecoveryOtp = (email: string) =>
-  adminApiFetch('/api/v1/admins/resend-recovery-otp', { method: 'POST', body: { adminEmail: email }, auth: false })
+  adminApiFetch(`/api/v1/admins/resend-recovery-otp?adminEmail=${encodeURIComponent(email)}`, { method: 'POST' })
 
 export const getAdminProfile = () => adminApiFetch<AdminProfile>('/api/v1/admins/me')
 export const updateAdminProfile = (p: UpdateAdminProfilePayload) =>
@@ -71,9 +85,13 @@ export const changeAdminPasswordVerify = (email: string, oldPassword: string, ne
 export const resendAdminPasswordChangeOtp = () =>
   adminApiFetch('/api/v1/admins/resend-password-change-otp', { method: 'POST' })
 export const changeAdminEmailInitiate = (oldEmail: string, newEmail: string) =>
-  adminApiFetch('/api/v1/admins/change-admin-email/initiate', { method: 'POST', body: { oldEmail, newEmail } })
+  adminApiFetch('/api/v1/admins/change-admin-email/initiate', {
+    method: 'POST', body: { oldAdminEmail: oldEmail, newAdminEmail: newEmail },
+  })
 export const changeAdminEmailVerify = (oldEmail: string, newEmail: string, otp: string) =>
-  adminApiFetch('/api/v1/admins/change-admin-email/verify', { method: 'POST', body: { oldEmail, newEmail, otp } })
+  adminApiFetch('/api/v1/admins/change-admin-email/verify', {
+    method: 'POST', body: { oldAdminEmail: oldEmail, newAdminEmail: newEmail, otp },
+  })
 export const resendAdminEmailChangeOtp = () =>
   adminApiFetch('/api/v1/admins/resend-email-change-otp', { method: 'POST' })
 

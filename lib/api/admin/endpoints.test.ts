@@ -3,7 +3,7 @@ import * as client from './client'
 import {
   adminLogin, adminLogout, registerAdmin, verifyAdmin, resendAdminRegistrationOtp,
   forgotAdminPassword, resendAdminForgottenPasswordOtp, resetAdminPassword,
-  adminRecoveryInitiate, adminRecoveryConfirm,
+  adminRecoveryInitiate, adminRecoveryConfirm, resendAdminRecoveryOtp,
 } from './endpoints'
 import { getAdminAccessToken, clearAdminAccessToken } from './token'
 
@@ -13,11 +13,11 @@ describe('admin auth endpoints', () => {
     vi.restoreAllMocks()
   })
 
-  it('adminLogin posts credentials and stores the access token', async () => {
+  it('adminLogin posts username (not adminEmail) and stores the access token', async () => {
     vi.spyOn(client, 'adminApiFetch').mockResolvedValue({ accessToken: 'tok' })
     await adminLogin('a@b.com', 'pw')
     expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/auth/admin-login', {
-      method: 'POST', body: { adminEmail: 'a@b.com', password: 'pw' }, auth: false,
+      method: 'POST', body: { username: 'a@b.com', password: 'pw' }, auth: false,
     })
     expect(getAdminAccessToken()).toBe('tok')
   })
@@ -28,11 +28,11 @@ describe('admin auth endpoints', () => {
     expect(getAdminAccessToken()).toBeNull()
   })
 
-  it('registerAdmin posts name, email, password with no auth', async () => {
+  it('registerAdmin posts adminName, adminEmail, adminPassword with no auth', async () => {
     vi.spyOn(client, 'adminApiFetch').mockResolvedValue({ message: 'ok' })
-    await registerAdmin({ name: 'Dami', email: 'a@b.com', password: 'Aa1!aaaa' })
+    await registerAdmin({ adminName: 'Dami', adminEmail: 'a@b.com', adminPassword: 'Aa1!aaaa' })
     expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/register-admin', {
-      method: 'POST', body: { name: 'Dami', email: 'a@b.com', password: 'Aa1!aaaa' }, auth: false,
+      method: 'POST', body: { adminName: 'Dami', adminEmail: 'a@b.com', adminPassword: 'Aa1!aaaa' }, auth: false,
     })
   })
 
@@ -45,53 +45,65 @@ describe('admin auth endpoints', () => {
     expect(getAdminAccessToken()).toBe('tok2')
   })
 
-  it('resendAdminRegistrationOtp posts adminEmail', async () => {
+  it('resendAdminRegistrationOtp sends adminEmail as a query param, no body', async () => {
     vi.spyOn(client, 'adminApiFetch').mockResolvedValue({ message: 'ok' })
     await resendAdminRegistrationOtp('a@b.com')
-    expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/resend-registration-otp', {
-      method: 'POST', body: { adminEmail: 'a@b.com' }, auth: false,
+    expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/resend-registration-otp?adminEmail=a%40b.com', {
+      method: 'POST', auth: false,
     })
   })
 
-  it('forgotAdminPassword posts a JSON body, never a query string', async () => {
+  it('forgotAdminPassword sends adminEmail as a query param, no body', async () => {
     vi.spyOn(client, 'adminApiFetch').mockResolvedValue({ message: 'ok' })
     await forgotAdminPassword('a@b.com')
     const [path, opts] = (client.adminApiFetch as ReturnType<typeof vi.fn>).mock.calls[0]!
-    expect(path).not.toContain('?')
-    expect(opts.body).toEqual({ adminEmail: 'a@b.com' })
+    expect(path).toBe('/api/v1/auth/forgot-admin-password?adminEmail=a%40b.com')
+    expect(opts).toEqual({ method: 'POST', auth: false })
   })
 
-  it('resendAdminForgottenPasswordOtp posts adminEmail', async () => {
+  it('resendAdminForgottenPasswordOtp sends adminEmail as a query param, no body', async () => {
     vi.spyOn(client, 'adminApiFetch').mockResolvedValue({ message: 'ok' })
     await resendAdminForgottenPasswordOtp('a@b.com')
-    expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/auth/resend-admin-forgotten-password-otp', {
-      method: 'POST', body: { adminEmail: 'a@b.com' }, auth: false,
-    })
+    expect(client.adminApiFetch).toHaveBeenCalledWith(
+      '/api/v1/auth/resend-admin-forgotten-password-otp?adminEmail=a%40b.com',
+      { method: 'POST', auth: false },
+    )
   })
 
-  it('resetAdminPassword posts email, otp, and newPassword', async () => {
+  it('resetAdminPassword posts email (not adminEmail), otp, and newPassword', async () => {
     vi.spyOn(client, 'adminApiFetch').mockResolvedValue({ message: 'ok' })
     await resetAdminPassword('a@b.com', '123456', 'NewPass1!')
     expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/auth/reset-admin-password', {
-      method: 'POST', body: { adminEmail: 'a@b.com', otp: '123456', newPassword: 'NewPass1!' }, auth: false,
+      method: 'POST', body: { email: 'a@b.com', otp: '123456', newPassword: 'NewPass1!' }, auth: false,
     })
   })
 
-  it('adminRecoveryInitiate posts adminEmail', async () => {
+  it('adminRecoveryInitiate sends adminEmail as a query param, no body', async () => {
     vi.spyOn(client, 'adminApiFetch').mockResolvedValue({ message: 'ok' })
     await adminRecoveryInitiate('a@b.com')
-    expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/auth/recovery/admin/initiate', {
-      method: 'POST', body: { adminEmail: 'a@b.com' }, auth: false,
-    })
+    expect(client.adminApiFetch).toHaveBeenCalledWith(
+      '/api/v1/auth/recovery/admin/initiate?adminEmail=a%40b.com',
+      { method: 'POST', auth: false },
+    )
   })
 
-  it('adminRecoveryConfirm posts adminEmail and otp, stores the returned token', async () => {
+  it('adminRecoveryConfirm sends adminEmail and otp as query params, no body, stores the returned token', async () => {
     vi.spyOn(client, 'adminApiFetch').mockResolvedValue({ accessToken: 'tok3' })
     await adminRecoveryConfirm('a@b.com', '654321')
-    expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/auth/recovery/admin/confirm', {
-      method: 'POST', body: { adminEmail: 'a@b.com', otp: '654321' }, auth: false,
-    })
+    expect(client.adminApiFetch).toHaveBeenCalledWith(
+      '/api/v1/auth/recovery/admin/confirm?adminEmail=a%40b.com&otp=654321',
+      { method: 'POST', auth: false },
+    )
     expect(getAdminAccessToken()).toBe('tok3')
+  })
+
+  it('resendAdminRecoveryOtp sends adminEmail as a query param, no body, and does not force auth: false ' +
+    '(the real backend requires an ADMIN JWT for this endpoint despite it living under the recovery flow)', async () => {
+    vi.spyOn(client, 'adminApiFetch').mockResolvedValue({ message: 'ok' })
+    await resendAdminRecoveryOtp('a@b.com')
+    expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/resend-recovery-otp?adminEmail=a%40b.com', {
+      method: 'POST',
+    })
   })
 })
 
@@ -127,19 +139,19 @@ describe('admin account credential changes', () => {
     expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/resend-password-change-otp', { method: 'POST' })
   })
 
-  it('changeAdminEmailInitiate posts oldEmail and newEmail', async () => {
+  it('changeAdminEmailInitiate posts oldAdminEmail and newAdminEmail', async () => {
     vi.spyOn(client, 'adminApiFetch').mockResolvedValue({ message: 'ok' })
     await changeAdminEmailInitiate('old@b.com', 'new@b.com')
     expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/change-admin-email/initiate', {
-      method: 'POST', body: { oldEmail: 'old@b.com', newEmail: 'new@b.com' },
+      method: 'POST', body: { oldAdminEmail: 'old@b.com', newAdminEmail: 'new@b.com' },
     })
   })
 
-  it('changeAdminEmailVerify posts oldEmail, newEmail, and otp', async () => {
+  it('changeAdminEmailVerify posts oldAdminEmail, newAdminEmail, and otp', async () => {
     vi.spyOn(client, 'adminApiFetch').mockResolvedValue({ message: 'ok' })
     await changeAdminEmailVerify('old@b.com', 'new@b.com', '654321')
     expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/change-admin-email/verify', {
-      method: 'POST', body: { oldEmail: 'old@b.com', newEmail: 'new@b.com', otp: '654321' },
+      method: 'POST', body: { oldAdminEmail: 'old@b.com', newAdminEmail: 'new@b.com', otp: '654321' },
     })
   })
 

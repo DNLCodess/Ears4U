@@ -62,8 +62,8 @@ export async function adminMockFetch<T>(path: string, opts: Opts = {}): Promise<
     return delay({ message: 'ok' } as T)
   }
   if (pathname === '/api/v1/admins/change-admin-email/verify' && method === 'POST') {
-    const { newEmail } = (opts.body ?? {}) as { newEmail?: string }
-    return delay(adminMockStore.confirmEmailChange(newEmail ?? '') as T)
+    const { newAdminEmail } = (opts.body ?? {}) as { newAdminEmail?: string }
+    return delay(adminMockStore.confirmEmailChange(newAdminEmail ?? '') as T)
   }
   if (pathname === '/api/v1/admins/resend-email-change-otp' && method === 'POST') {
     return delay({ message: 'ok' } as T)

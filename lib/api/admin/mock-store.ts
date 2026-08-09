@@ -4,10 +4,10 @@ import type {
 } from './types'
 
 let profile: AdminProfile = {
-  id: 1,
-  name: 'Ada Admin',
-  email: 'admin@earsforyou.test',
-  createdAt: '2026-01-01T00:00:00Z',
+  adminName: 'Ada Admin',
+  adminEmail: 'admin@earsforyou.test',
+  role: 'Admin',
+  createdAt: null,
 }
 
 const dashboardMetrics: AdminDashboardMetrics = {
@@ -77,7 +77,7 @@ export const adminMockStore = {
     return profile
   },
   confirmEmailChange(newEmail: string): AdminProfile {
-    profile = { ...profile, email: newEmail }
+    profile = { ...profile, adminEmail: newEmail }
     return profile
   },
   getDashboard(): AdminDashboardMetrics {

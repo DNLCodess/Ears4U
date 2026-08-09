@@ -1,15 +1,15 @@
 export interface AdminProfile {
-  id: number
-  name: string
-  email: string
-  createdAt: string
+  adminName: string
+  adminEmail: string
+  role: string
+  createdAt: string | null
 }
 export interface AdminRegisterPayload {
-  name: string
-  email: string
-  password: string
+  adminName: string
+  adminEmail: string
+  adminPassword: string
 }
-export type UpdateAdminProfilePayload = Pick<AdminProfile, 'name'>
+export type UpdateAdminProfilePayload = Pick<AdminProfile, 'adminName'>
 export interface AdminDashboardMetrics {
   totalUsers: number
   activeUsers: number
