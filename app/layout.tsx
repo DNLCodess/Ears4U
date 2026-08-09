@@ -26,7 +26,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col">
         {children}
         {MOCKS_ENABLED ? (
-          <div className="fixed top-3 right-3 z-50 rounded-full border-[1.5px] border-marigold bg-card px-3 py-1 text-xs font-medium text-fir shadow-sm">
+          <div className="pointer-events-none fixed top-3 right-3 z-50 rounded-full border-[1.5px] border-marigold bg-card px-3 py-1 text-xs font-medium text-fir shadow-sm">
             Preview data, not the live server
           </div>
         ) : null}
