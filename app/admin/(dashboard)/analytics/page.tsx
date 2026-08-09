@@ -11,7 +11,9 @@ export function bounds(points: { value: number }[]): [number, number] {
   const values = points.map(p => p.value)
   const min = Math.min(...values)
   const max = Math.max(...values)
-  return min === max ? [min - 1, max + 1] : [min, max]
+  if (min === max) return [min - 1, max + 1]
+  const pad = (max - min) * 0.05
+  return [min - pad, max + pad]
 }
 
 export default function AdminAnalyticsPage() {
@@ -38,7 +40,7 @@ export default function AdminAnalyticsPage() {
     )
   }
 
-  const { userGrowth, moods, aiUsage } = analytics.data
+  const { userGrowth = [], moods = [], aiUsage = [] } = analytics.data
   const [growthMin, growthMax] = bounds(userGrowth)
   const [moodMin, moodMax] = bounds(moods)
   const [usageMin, usageMax] = bounds(aiUsage)
@@ -48,7 +50,7 @@ export default function AdminAnalyticsPage() {
       <h1 className="font-display text-2xl font-semibold">Analytics</h1>
       <p className="max-w-lg text-sm opacity-60">Last 30 days.</p>
       <TimeSeriesChart title="User growth" points={userGrowth} min={growthMin} max={growthMax} color="#2E7D49" />
-      <TimeSeriesChart title="Moods" points={moods} min={moodMin} max={moodMax} color="#F2BE45" />
+      <TimeSeriesChart title="Moods" points={moods} min={moodMin} max={moodMax} color="#D99B21" />
       <TimeSeriesChart title="AI usage" points={aiUsage} min={usageMin} max={usageMax} color="#D9822B" />
     </div>
   )
