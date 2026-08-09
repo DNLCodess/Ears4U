@@ -69,5 +69,18 @@ export async function adminMockFetch<T>(path: string, opts: Opts = {}): Promise<
     return delay({ message: 'ok' } as T)
   }
 
+  if (pathname === '/api/v1/admins/dashboard' && method === 'GET') {
+    return delay(adminMockStore.getDashboard() as T)
+  }
+  if (pathname === '/api/v1/admins/dashboard/notifications' && method === 'GET') {
+    return delay(adminMockStore.getBroadcastHistory() as T)
+  }
+  if (pathname === '/api/v1/admins/anaytics' && method === 'GET') {
+    return delay(adminMockStore.getAnalytics() as T)
+  }
+  if (pathname === '/api/v1/admins/dashboard/exports' && method === 'GET') {
+    return delay(adminMockStore.getExportCsv() as T)
+  }
+
   throw new Error(`adminMockFetch: no mock route for ${method} ${pathname}`)
 }

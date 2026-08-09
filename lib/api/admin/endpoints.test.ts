@@ -149,3 +149,39 @@ describe('admin account credential changes', () => {
     expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/resend-email-change-otp', { method: 'POST' })
   })
 })
+
+import {
+  getAdminDashboard, getAdminBroadcastHistory, getAdminAnalytics, downloadAdminDashboardExport,
+} from './endpoints'
+
+describe('admin dashboard and analytics endpoints', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('getAdminDashboard fetches the dashboard metrics path', async () => {
+    vi.spyOn(client, 'adminApiFetch').mockResolvedValue({ totalUsers: 1 })
+    await getAdminDashboard()
+    expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/dashboard')
+  })
+
+  it('getAdminBroadcastHistory fetches the notifications path', async () => {
+    vi.spyOn(client, 'adminApiFetch').mockResolvedValue([])
+    await getAdminBroadcastHistory()
+    expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/dashboard/notifications')
+  })
+
+  it('getAdminAnalytics fetches the anaytics path exactly as documented, missing the l', async () => {
+    vi.spyOn(client, 'adminApiFetch').mockResolvedValue({ userGrowth: [], moods: [], aiUsage: [] })
+    await getAdminAnalytics()
+    expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/anaytics')
+  })
+
+  it('downloadAdminDashboardExport fetches the exports path via the blob client', async () => {
+    const fakeBlob = new Blob(['a,b'], { type: 'text/csv' })
+    vi.spyOn(client, 'adminApiFetchBlob').mockResolvedValue(fakeBlob)
+    const result = await downloadAdminDashboardExport()
+    expect(client.adminApiFetchBlob).toHaveBeenCalledWith('/api/v1/admins/dashboard/exports')
+    expect(result).toBe(fakeBlob)
+  })
+})

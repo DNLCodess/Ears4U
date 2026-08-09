@@ -1,6 +1,9 @@
-import { adminApiFetch } from './client'
+import { adminApiFetch, adminApiFetchBlob } from './client'
 import { setAdminAccessToken, clearAdminAccessToken } from './token'
-import type { AdminProfile, AdminRegisterPayload, UpdateAdminProfilePayload } from './types'
+import type {
+  AdminProfile, AdminRegisterPayload, UpdateAdminProfilePayload,
+  AdminDashboardMetrics, AdminBroadcastHistoryItem, AdminAnalytics,
+} from './types'
 
 export async function adminLogin(email: string, password: string): Promise<void> {
   const r = await adminApiFetch<{ accessToken: string }>('/api/v1/auth/admin-login', {
@@ -72,3 +75,9 @@ export const changeAdminEmailVerify = (oldEmail: string, newEmail: string, otp: 
   adminApiFetch('/api/v1/admins/change-admin-email/verify', { method: 'POST', body: { oldEmail, newEmail, otp } })
 export const resendAdminEmailChangeOtp = () =>
   adminApiFetch('/api/v1/admins/resend-email-change-otp', { method: 'POST' })
+
+export const getAdminDashboard = () => adminApiFetch<AdminDashboardMetrics>('/api/v1/admins/dashboard')
+export const getAdminBroadcastHistory = () =>
+  adminApiFetch<AdminBroadcastHistoryItem[]>('/api/v1/admins/dashboard/notifications')
+export const getAdminAnalytics = () => adminApiFetch<AdminAnalytics>('/api/v1/admins/anaytics')
+export const downloadAdminDashboardExport = () => adminApiFetchBlob('/api/v1/admins/dashboard/exports')
