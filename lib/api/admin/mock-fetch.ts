@@ -72,6 +72,9 @@ export async function adminMockFetch<T>(path: string, opts: Opts = {}): Promise<
   if (pathname === '/api/v1/admins/dashboard' && method === 'GET') {
     return delay(adminMockStore.getDashboard() as T)
   }
+  if (pathname === '/api/v1/admins/emergency/dashboard' && method === 'GET') {
+    return delay(adminMockStore.getEmergencyDashboard() as T)
+  }
   if (pathname === '/api/v1/admins/dashboard/notifications' && method === 'GET') {
     return delay(adminMockStore.getBroadcastHistory() as T)
   }

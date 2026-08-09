@@ -163,7 +163,7 @@ describe('admin account credential changes', () => {
 })
 
 import {
-  getAdminDashboard, getAdminBroadcastHistory, getAdminAnalytics, downloadAdminDashboardExport,
+  getAdminDashboard, getAdminEmergencyDashboard, getAdminBroadcastHistory, getAdminAnalytics, downloadAdminDashboardExport,
 } from './endpoints'
 
 describe('admin dashboard and analytics endpoints', () => {
@@ -175,6 +175,12 @@ describe('admin dashboard and analytics endpoints', () => {
     vi.spyOn(client, 'adminApiFetch').mockResolvedValue({ totalUsers: 1 })
     await getAdminDashboard()
     expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/dashboard')
+  })
+
+  it('getAdminEmergencyDashboard fetches the emergency dashboard path', async () => {
+    vi.spyOn(client, 'adminApiFetch').mockResolvedValue({ totalHotlines: 1, totalWebsites: 2, totalClinics: 0, activeCountriesCount: 1, resources: [] })
+    await getAdminEmergencyDashboard()
+    expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/emergency/dashboard')
   })
 
   it('getAdminBroadcastHistory fetches the notifications path and unwraps the notifications array ' +

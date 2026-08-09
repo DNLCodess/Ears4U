@@ -2,7 +2,7 @@ import { ADMIN_USERS_PAGE_SIZE } from './types'
 import type {
   AdminProfile, AdminDashboardMetrics, AdminBroadcastHistoryItem, AdminNotificationDashboardResponse,
   AdminAnalyticsResponse, AdminTimeSeriesPoint, AdminAiUsagePoint,
-  AdminUserSummary, AdminUsersPage, AdminAuditLogItem,
+  AdminUserSummary, AdminUsersPage, AdminAuditLogItem, AdminEmergencyResource, AdminEmergencyDashboard,
 } from './types'
 
 let profile: AdminProfile = {
@@ -94,6 +94,17 @@ const auditLogs: AdminAuditLogItem[] = [
   { id: 2, action: 'Sent broadcast to All users', adminEmail: 'admin@earsforyou.test', timestamp: '2026-08-05T14:00:00Z' },
 ]
 
+const emergencyResources: AdminEmergencyResource[] = [
+  { id: 1, name: 'National Crisis Line', country: 'United States', resourceType: 'HOTLINE', contactInfo: '988', active: true },
+  { id: 2, name: 'Samaritans', country: 'United Kingdom', resourceType: 'HOTLINE', contactInfo: '116 123', active: true },
+  { id: 3, name: 'BetterHelp', country: 'United States', resourceType: 'WEBSITE', contactInfo: 'betterhelp.com', active: true },
+  { id: 4, name: 'Mind', country: 'United Kingdom', resourceType: 'WEBSITE', contactInfo: 'mind.org.uk', active: true },
+  { id: 5, name: 'Lagos University Teaching Hospital', country: 'Nigeria', resourceType: 'CLINIC', contactInfo: '+234 1 545 0000', active: true },
+  { id: 6, name: 'Old Community Line (retired)', country: 'Canada', resourceType: 'HOTLINE', contactInfo: '1-800-000-0000', active: false },
+]
+// eslint-disable-next-line @typescript-eslint/no-unused-vars, prefer-const
+let nextResourceId = 7
+
 export const adminMockStore = {
   getProfile(): AdminProfile {
     return profile
@@ -161,5 +172,14 @@ export const adminMockStore = {
   },
   generateOtp(): { otp: string } {
     return { otp: '482913' }
+  },
+  getEmergencyDashboard(): AdminEmergencyDashboard {
+    return {
+      totalHotlines: emergencyResources.filter(r => r.resourceType === 'HOTLINE').length,
+      totalWebsites: emergencyResources.filter(r => r.resourceType === 'WEBSITE').length,
+      totalClinics: emergencyResources.filter(r => r.resourceType === 'CLINIC').length,
+      activeCountriesCount: new Set(emergencyResources.filter(r => r.active).map(r => r.country)).size,
+      resources: emergencyResources,
+    }
   },
 }

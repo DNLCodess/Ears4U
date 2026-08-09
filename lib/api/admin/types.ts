@@ -116,3 +116,19 @@ export interface AdminAuditLogItem {
   adminEmail: string
   timestamp: string
 }
+export interface AdminEmergencyResource {
+  id: number
+  name: string
+  country: string
+  resourceType: 'HOTLINE' | 'WEBSITE' | 'CLINIC'
+  contactInfo: string
+  active: boolean
+}
+export type AdminEmergencyResourceInput = Omit<AdminEmergencyResource, 'id'>
+export interface AdminEmergencyDashboard {
+  totalHotlines: number
+  totalWebsites: number
+  totalClinics: number
+  activeCountriesCount: number
+  resources: AdminEmergencyResource[]
+}

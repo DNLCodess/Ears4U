@@ -5,4 +5,5 @@ export const adminQk = {
   analytics: ['admin-analytics'] as const,
   users: ['admin-users'] as const,
   auditLogs: ['admin-audit-logs'] as const,
+  emergencyDashboard: ['admin-emergency-dashboard'] as const,
 }

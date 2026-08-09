@@ -5,7 +5,7 @@ import type {
   AdminProfile, AdminRegisterPayload, UpdateAdminProfilePayload,
   AdminDashboardMetrics, AdminBroadcastHistoryItem, AdminNotificationDashboardResponse,
   AdminAnalytics, AdminAnalyticsResponse,
-  AdminUsersPage, AdminAuditLogItem,
+  AdminUsersPage, AdminAuditLogItem, AdminEmergencyDashboard,
 } from './types'
 
 export async function adminLogin(email: string, password: string): Promise<void> {
@@ -98,6 +98,8 @@ export const resendAdminEmailChangeOtp = () =>
   adminApiFetch('/api/v1/admins/resend-email-change-otp', { method: 'POST' })
 
 export const getAdminDashboard = () => adminApiFetch<AdminDashboardMetrics>('/api/v1/admins/dashboard')
+export const getAdminEmergencyDashboard = () =>
+  adminApiFetch<AdminEmergencyDashboard>('/api/v1/admins/emergency/dashboard')
 
 // Real endpoint returns a NotificationDashboardResponse wrapper (totalSent/toAllUsers/
 // reEngagement/notifications), not a bare array - unwrap it here so callers keep working with a
