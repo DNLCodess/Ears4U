@@ -96,5 +96,30 @@ export async function adminMockFetch<T>(path: string, opts: Opts = {}): Promise<
     return delay(adminMockStore.getAuditLogs() as T)
   }
 
+  if (pathname === '/api/v1/admins/users/suspend' && method === 'PUT') {
+    const { userEmail } = (opts.body ?? {}) as { userEmail?: string }
+    adminMockStore.setUserStatus(userEmail ?? '', 'suspended')
+    return delay({ message: 'ok' } as T)
+  }
+  if (pathname === '/api/v1/admins/users/reactivate' && method === 'PUT') {
+    const { userEmail } = (opts.body ?? {}) as { userEmail?: string }
+    adminMockStore.setUserStatus(userEmail ?? '', 'active')
+    return delay({ message: 'ok' } as T)
+  }
+  if (pathname === '/api/v1/admins/users/change-email' && method === 'PUT') {
+    const { currentEmail, newEmail } = (opts.body ?? {}) as { currentEmail?: string; newEmail?: string }
+    adminMockStore.setUserEmail(currentEmail ?? '', newEmail ?? '')
+    return delay({ message: 'ok' } as T)
+  }
+  if (
+    method === 'POST' &&
+    (pathname === '/api/v1/admins/users/failover/registration-otp' ||
+      pathname === '/api/v1/admins/users/failover/password-otp' ||
+      pathname === '/api/v1/admins/users/failover/email-otp' ||
+      pathname === '/api/v1/admins/users/failover/password-change-otp')
+  ) {
+    return delay(adminMockStore.generateOtp() as T)
+  }
+
   throw new Error(`adminMockFetch: no mock route for ${method} ${pathname}`)
 }

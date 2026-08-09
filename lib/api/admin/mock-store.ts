@@ -108,4 +108,17 @@ export const adminMockStore = {
   getAuditLogs(): AdminAuditLogItem[] {
     return auditLogs
   },
+  setUserStatus(email: string, status: 'active' | 'suspended'): AdminUserSummary | undefined {
+    const u = users.find(u => u.email === email)
+    if (u) u.status = status
+    return u
+  },
+  setUserEmail(currentEmail: string, newEmail: string): AdminUserSummary | undefined {
+    const u = users.find(u => u.email === currentEmail)
+    if (u) u.email = newEmail
+    return u
+  },
+  generateOtp(): { otp: string } {
+    return { otp: '482913' }
+  },
 }

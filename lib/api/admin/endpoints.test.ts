@@ -211,3 +211,48 @@ describe('admin users read endpoints', () => {
     expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/audit-logs')
   })
 })
+
+import { suspendAdminUser, reactivateAdminUser, changeAdminUserEmail, generateAdminUserOtp } from './endpoints'
+
+describe('admin user action endpoints', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('suspendAdminUser sends a JSON body, never a query string', async () => {
+    vi.spyOn(client, 'adminApiFetch').mockResolvedValue({ message: 'ok' })
+    await suspendAdminUser('grace.okafor@example.com')
+    const [path, opts] = (client.adminApiFetch as ReturnType<typeof vi.fn>).mock.calls[0]!
+    expect(path).not.toContain('?')
+    expect(opts).toEqual({ method: 'PUT', body: { userEmail: 'grace.okafor@example.com' } })
+  })
+
+  it('reactivateAdminUser sends a JSON body with userEmail', async () => {
+    vi.spyOn(client, 'adminApiFetch').mockResolvedValue({ message: 'ok' })
+    await reactivateAdminUser('amara.chukwu@example.com')
+    expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/users/reactivate', {
+      method: 'PUT', body: { userEmail: 'amara.chukwu@example.com' },
+    })
+  })
+
+  it('changeAdminUserEmail sends currentEmail and newEmail', async () => {
+    vi.spyOn(client, 'adminApiFetch').mockResolvedValue({ message: 'ok' })
+    await changeAdminUserEmail('old@example.com', 'new@example.com')
+    expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/users/change-email', {
+      method: 'PUT', body: { currentEmail: 'old@example.com', newEmail: 'new@example.com' },
+    })
+  })
+
+  it('generateAdminUserOtp dispatches to the correct failover path per kind', async () => {
+    vi.spyOn(client, 'adminApiFetch').mockResolvedValue({ otp: '482913' })
+    await generateAdminUserOtp('grace.okafor@example.com', 'registration')
+    expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/users/failover/registration-otp', {
+      method: 'POST', body: { userEmail: 'grace.okafor@example.com' },
+    })
+
+    await generateAdminUserOtp('grace.okafor@example.com', 'password-change')
+    expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/users/failover/password-change-otp', {
+      method: 'POST', body: { userEmail: 'grace.okafor@example.com' },
+    })
+  })
+})

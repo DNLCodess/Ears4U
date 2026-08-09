@@ -92,3 +92,19 @@ export function getAdminUsers(params: { search?: string; status?: 'active' | 'su
   return adminApiFetch<AdminUsersPage>(`/api/v1/admins/users${query ? `?${query}` : ''}`)
 }
 export const getAdminAuditLogs = () => adminApiFetch<AdminAuditLogItem[]>('/api/v1/admins/audit-logs')
+
+export const suspendAdminUser = (userEmail: string) =>
+  adminApiFetch('/api/v1/admins/users/suspend', { method: 'PUT', body: { userEmail } })
+export const reactivateAdminUser = (userEmail: string) =>
+  adminApiFetch('/api/v1/admins/users/reactivate', { method: 'PUT', body: { userEmail } })
+export const changeAdminUserEmail = (currentEmail: string, newEmail: string) =>
+  adminApiFetch('/api/v1/admins/users/change-email', { method: 'PUT', body: { currentEmail, newEmail } })
+
+const FAILOVER_OTP_PATHS: Record<'registration' | 'password' | 'email' | 'password-change', string> = {
+  registration: '/api/v1/admins/users/failover/registration-otp',
+  password: '/api/v1/admins/users/failover/password-otp',
+  email: '/api/v1/admins/users/failover/email-otp',
+  'password-change': '/api/v1/admins/users/failover/password-change-otp',
+}
+export const generateAdminUserOtp = (userEmail: string, kind: keyof typeof FAILOVER_OTP_PATHS) =>
+  adminApiFetch<{ otp: string }>(FAILOVER_OTP_PATHS[kind], { method: 'POST', body: { userEmail } })
