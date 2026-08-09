@@ -9,7 +9,7 @@ import type { AdminUsersPage as AdminUsersPageData, AdminAuditLogItem } from '@/
 
 describe('formatJoinedAt', () => {
   it('formats a valid ISO date with the year', () => {
-    expect(formatJoinedAt('2026-02-14T00:00:00Z')).toMatch(/Feb\s+14,\s+2026/)
+    expect(formatJoinedAt('2026-02-14T14:00:00Z')).toMatch(/Feb\s+14,\s+2026/)
   })
   it('returns an empty string for an invalid date', () => {
     expect(formatJoinedAt('not-a-date')).toBe('')
@@ -33,6 +33,7 @@ vi.mock('@tanstack/react-query', () => ({
   useQuery: (opts: { queryKey: readonly unknown[] }) => useQueryMock(opts),
   useMutation: (opts: unknown) => useMutationMock(opts),
   useQueryClient: () => useQueryClientMock(),
+  keepPreviousData: Symbol('keepPreviousData'),
 }))
 
 type QueryState<T> = {
@@ -57,7 +58,7 @@ function mockQueries(states: {
 
 const USERS_PAGE: AdminUsersPageData = {
   users: [
-    { id: 1, name: 'Grace Okafor', email: 'grace.okafor@example.com', status: 'active', joinedAt: '2026-02-14T00:00:00Z' },
+    { id: 1, name: 'Grace Okafor', email: 'grace.okafor@example.com', status: 'active', joinedAt: '2026-02-14T14:00:00Z' },
     { id: 2, name: 'Amara Chukwu', email: 'amara.chukwu@example.com', status: 'suspended', joinedAt: '2026-01-20T00:00:00Z' },
   ],
   page: 1,
@@ -165,5 +166,89 @@ describe('AdminUsersPage', () => {
     expect(screen.getByText('Amara Chukwu')).toBeInTheDocument()
     expect(screen.queryByText('Suspended user amara.chukwu@example.com')).not.toBeInTheDocument()
     expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0)
+  })
+
+  describe('search, filters, and pagination', () => {
+    const USERS_PAGE_MULTI: AdminUsersPageData = { ...USERS_PAGE, page: 1, totalPages: 3 }
+
+    function lastUsersQueryParams() {
+      const calls = (useQueryMock.mock.calls as [{ queryKey: readonly unknown[] }][])
+        .map(call => call[0])
+        .filter(opts => opts.queryKey[0] === adminQk.users[0])
+      return calls.at(-1)?.queryKey[1] as { search: string; status: string; page: number } | undefined
+    }
+
+    it('puts typed search text into the users query key and resets page to 1', async () => {
+      mockQueries({ users: { data: USERS_PAGE_MULTI }, auditLogs: { data: AUDIT_LOGS } })
+      const user = userEvent.setup()
+      render(<AdminUsersPage />)
+
+      // Advance to page 2 first so we can prove the search resets it back to 1.
+      await user.click(screen.getByRole('button', { name: 'Next' }))
+      expect(lastUsersQueryParams()).toMatchObject({ page: 2 })
+
+      await user.type(screen.getByLabelText('Search'), 'grace')
+
+      expect(lastUsersQueryParams()).toMatchObject({ search: 'grace', page: 1 })
+    })
+
+    it('puts the clicked status filter into the users query key and resets page to 1', async () => {
+      mockQueries({ users: { data: USERS_PAGE_MULTI }, auditLogs: { data: AUDIT_LOGS } })
+      const user = userEvent.setup()
+      render(<AdminUsersPage />)
+
+      await user.click(screen.getByRole('button', { name: 'Next' }))
+      expect(lastUsersQueryParams()).toMatchObject({ page: 2 })
+
+      await user.click(screen.getByRole('button', { name: 'Active' }))
+
+      expect(lastUsersQueryParams()).toMatchObject({ status: 'active', page: 1 })
+    })
+
+    it('increments page in the users query key when Next is clicked', async () => {
+      mockQueries({ users: { data: USERS_PAGE_MULTI }, auditLogs: { data: AUDIT_LOGS } })
+      const user = userEvent.setup()
+      render(<AdminUsersPage />)
+
+      expect(lastUsersQueryParams()).toMatchObject({ page: 1 })
+      await user.click(screen.getByRole('button', { name: 'Next' }))
+
+      expect(lastUsersQueryParams()).toMatchObject({ page: 2 })
+    })
+
+    it('renders pagination controls even when the current page has no users, so an admin can still click Previous', async () => {
+      mockQueries({
+        users: { data: { users: [], page: 2, totalPages: 2 } },
+        auditLogs: { data: AUDIT_LOGS },
+      })
+      const user = userEvent.setup()
+      render(<AdminUsersPage />)
+
+      expect(screen.getByText('No users match that search.')).toBeInTheDocument()
+      // Local page state starts at 1; advance it so Previous becomes enabled,
+      // mirroring an admin already on page 2 whose list just emptied out
+      // after an action (e.g. suspending the only remaining active user).
+      await user.click(screen.getByRole('button', { name: 'Next' }))
+      expect(screen.getByRole('button', { name: 'Previous' })).toBeEnabled()
+    })
+  })
+
+  describe('opening the manage sheet', () => {
+    it('opens UserManageSheet with the clicked row\'s user when Manage is clicked', async () => {
+      mockQueries({ users: { data: USERS_PAGE }, auditLogs: { data: AUDIT_LOGS } })
+      const user = userEvent.setup()
+      render(<AdminUsersPage />)
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+      const manageButtons = screen.getAllByRole('button', { name: 'Manage' })
+      await user.click(manageButtons[1])
+
+      const dialog = screen.getByRole('dialog', { name: 'Amara Chukwu' })
+      expect(dialog).toBeInTheDocument()
+      // Amara is suspended in USERS_PAGE, so the sheet should offer reactivation,
+      // confirming it received the correct user rather than a stale/wrong one.
+      expect(screen.getByRole('button', { name: /reactivate user/i })).toBeInTheDocument()
+    })
   })
 })

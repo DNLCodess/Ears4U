@@ -36,6 +36,7 @@ function StatusAction({ user }: { user: AdminUserSummary }) {
     mutationFn: () => (isActive ? suspendAdminUser(user.email) : reactivateAdminUser(user.email)),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: adminQk.users })
+      void queryClient.invalidateQueries({ queryKey: adminQk.auditLogs })
       setConfirming(false)
     },
   })
@@ -80,6 +81,7 @@ function ChangeEmailForm({ user }: { user: AdminUserSummary }) {
     mutationFn: () => changeAdminUserEmail(user.email, newEmail),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: adminQk.users })
+      void queryClient.invalidateQueries({ queryKey: adminQk.auditLogs })
       setNewEmail('')
     },
   })
@@ -92,20 +94,33 @@ function ChangeEmailForm({ user }: { user: AdminUserSummary }) {
       className="flex flex-col gap-3"
     >
       {mutation.isError ? <p role="alert" className="text-sm text-clay">{errorMessage(mutation.error)}</p> : null}
-      {mutation.isSuccess ? <p className="text-sm text-leaf">Email updated.</p> : null}
+      {mutation.isSuccess ? <p role="status" className="text-sm text-leaf">Email updated.</p> : null}
       <Field label="New email" type="email" autoComplete="email" required
-        value={newEmail} onChange={e => setNewEmail(e.target.value)} />
+        value={newEmail} onChange={e => { setNewEmail(e.target.value); mutation.reset() }} />
       <Button type="submit" busy={mutation.isPending} disabled={!valid}>Update email</Button>
     </form>
   )
 }
 
 function FailoverOtpButton({ user, kind, label }: { user: AdminUserSummary; kind: OtpKind; label: string }) {
+  const queryClient = useQueryClient()
+  const [copied, setCopied] = useState(false)
   // Each row owns its own mutation so generating one code doesn't clear or
   // hide another row's already-displayed code or error.
   const mutation = useMutation({
     mutationFn: () => generateAdminUserOtp(user.email, kind),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: adminQk.auditLogs })
+    },
   })
+
+  const copyCode = () => {
+    const code = mutation.data?.otp
+    if (!code) return
+    void navigator.clipboard.writeText(code)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -118,8 +133,11 @@ function FailoverOtpButton({ user, kind, label }: { user: AdminUserSummary; kind
         {label}
       </Button>
       {mutation.isSuccess ? (
-        <p className="text-sm text-leaf">
+        <p role="status" className="flex items-center gap-2 text-sm text-leaf">
           Code: <span className="font-display font-semibold">{mutation.data?.otp}</span>
+          <Button type="button" variant="ghost" onClick={copyCode}>
+            {copied ? 'Copied' : 'Copy'}
+          </Button>
         </p>
       ) : null}
       {mutation.isError ? (
