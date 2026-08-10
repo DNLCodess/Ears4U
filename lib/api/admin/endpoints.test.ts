@@ -347,3 +347,36 @@ describe('admin user action endpoints', () => {
     )
   })
 })
+
+import { updateAdminSettings, resetAdminSetting } from './endpoints'
+
+describe('admin settings write endpoints', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('updateAdminSettings sends PATCH with the full settings object as body', async () => {
+    vi.spyOn(client, 'adminApiFetch').mockResolvedValue({ message: 'ok' })
+    const settings = {
+      apiConfiguration: { baseUrl: 'https://api.example.com', apiVersion: 'v1', rateLimitPerMinute: 60, timeoutMs: 30000 },
+      emailConfiguration: { apiKey: 'sk-x' + '*'.repeat(16) + '3f2a', senderEmail: 'noreply@example.com', senderName: 'Ears for You' },
+      otpConfiguration: { otpLength: 6, otpExpiryMinutes: 10, maxAttempts: 3, deliveryChannel: 'EMAIL' as const },
+      securitySettings: { jwtExpiryMinutes: 60, refreshTokenExpiryDays: 7, maxLoginAttempts: 5, sessionTimeoutMinutes: 30, mfaEnabled: false, ipWhitelistEnabled: false },
+      aiConfiguration: { enableAiChat: true, aiSystemPrompt: 'You are a mental health support assistant.' },
+    }
+    await updateAdminSettings(settings)
+    expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/settings', { method: 'PATCH', body: settings })
+  })
+
+  it('resetAdminSetting sends DELETE with the key in the URL path, not a query string or body', async () => {
+    vi.spyOn(client, 'adminApiFetch').mockResolvedValue({ message: "Setting 'api_base_url' has been reset to system default." })
+    await resetAdminSetting('api_base_url')
+    expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/settings/api_base_url', { method: 'DELETE' })
+  })
+
+  it('resetAdminSetting works for a second, different key (guards against a hardcoded single-key assumption)', async () => {
+    vi.spyOn(client, 'adminApiFetch').mockResolvedValue({ message: "Setting 'security_mfa_enabled' has been reset to system default." })
+    await resetAdminSetting('security_mfa_enabled')
+    expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/settings/security_mfa_enabled', { method: 'DELETE' })
+  })
+})

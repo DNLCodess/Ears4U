@@ -7,7 +7,7 @@ import type {
   AdminAnalytics, AdminAnalyticsResponse,
   AdminUsersPage, AdminAuditLogItem, AdminEmergencyDashboard,
   AdminEmergencyResource, AdminEmergencyResourceInput,
-  AdminSystemSettings, AdminTelemetry,
+  AdminSystemSettings, AdminSettingResetKey, AdminTelemetry,
 } from './types'
 
 export async function adminLogin(email: string, password: string): Promise<void> {
@@ -187,3 +187,15 @@ export const generateAdminUserOtp = (userEmail: string, kind: keyof typeof FAILO
 
 export const getAdminSettings = () => adminApiFetch<AdminSystemSettings>('/api/v1/admins/settings')
 export const getAdminTelemetry = () => adminApiFetch<AdminTelemetry>('/api/v1/admins/telemetry')
+
+// Always sends the full settings object (all five nested sections), per this phase's design
+// decision - a partial payload is technically valid on the backend too, but resending an
+// unchanged section back is harmless (the backend just rewrites the same values), except the
+// masked API key, which the backend detects and skips writing (see mock-store.ts for the mirrored
+// guard in mock mode).
+export const updateAdminSettings = (settings: AdminSystemSettings) =>
+  adminApiFetch('/api/v1/admins/settings', { method: 'PATCH', body: settings })
+// key is one of the 19 flat Redis key names from the design spec's table (e.g. 'api_base_url'),
+// not a nested DTO field name - sent as a path variable, not a query string or body.
+export const resetAdminSetting = (key: AdminSettingResetKey) =>
+  adminApiFetch(`/api/v1/admins/settings/${encodeURIComponent(key)}`, { method: 'DELETE' })

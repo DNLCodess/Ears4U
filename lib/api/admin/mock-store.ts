@@ -4,7 +4,7 @@ import type {
   AdminAnalyticsResponse, AdminTimeSeriesPoint, AdminAiUsagePoint,
   AdminUserSummary, AdminUsersPage, AdminAuditLogItem, AdminEmergencyResource, AdminEmergencyDashboard,
   AdminEmergencyResourceInput,
-  AdminSystemSettings, AdminTelemetry, AdminTelemetryPoint,
+  AdminSystemSettings, AdminSettingResetKey, AdminTelemetry, AdminTelemetryPoint,
 } from './types'
 
 let profile: AdminProfile = {
@@ -106,13 +106,59 @@ const emergencyResources: AdminEmergencyResource[] = [
 ]
 let nextResourceId = 7
 
-const settings: AdminSystemSettings = {
+// Real backend has no literal default for the email API key (it's env-sourced - a DELETE falls
+// back to reading process.env.EMAIL_APIKEY server-side) or the AI system prompt in the DTO's own
+// getOrDefault fallback chain in the sense of a documented product-facing default, but the AI
+// prompt one IS a real hardcoded string confirmed from AdminSettingController.getSettings()'s
+// getOrDefault fallback - used below as the reset target. The API key has no equivalent literal
+// fallback to mirror in mock mode, so its reset target is this mock's own baseline masked key.
+const DEFAULT_EMAIL_API_KEY = 'sk-x' + '*'.repeat(16) + '3f2a'
+const DEFAULT_AI_SYSTEM_PROMPT =
+  "You are EarsForYou, an empathetic therapist. Validate the user's feelings and keep answers concise, warm, and supportive."
+
+// Mutable (not const) because updateSettings replaces the whole object wholesale.
+let settings: AdminSystemSettings = {
   apiConfiguration: { baseUrl: 'https://api.earsfor.you', apiVersion: 'v1', rateLimitPerMinute: 120, timeoutMs: 5000 },
-  emailConfiguration: { apiKey: 'sk-x' + '*'.repeat(16) + '3f2a', senderEmail: 'badejoiseoluwa@gmail.com', senderName: 'EarsForYou' },
+  emailConfiguration: { apiKey: DEFAULT_EMAIL_API_KEY, senderEmail: 'badejoiseoluwa@gmail.com', senderName: 'EarsForYou' },
   otpConfiguration: { otpLength: 6, otpExpiryMinutes: 10, maxAttempts: 3, deliveryChannel: 'EMAIL' },
   securitySettings: { jwtExpiryMinutes: 60, refreshTokenExpiryDays: 7, maxLoginAttempts: 5, sessionTimeoutMinutes: 30, mfaEnabled: true, ipWhitelistEnabled: false },
+  // Deliberately a custom-looking prompt, distinct from DEFAULT_AI_SYSTEM_PROMPT, so the mock
+  // exercises a meaningful before/after when an admin resets ai_system_prompt to default.
   aiConfiguration: { enableAiChat: true, aiSystemPrompt: 'You are a mental health support assistant for Ears for You.' },
 }
+
+// Maps each of the 19 flat AdminSettingResetKey values (the real Redis key names) back to which
+// nested AdminSystemSettings field it resets and to what default, per the design spec's table
+// (docs/superpowers/specs/2026-08-10-earsforyou-admin-settings-telemetry-design.md). Values are
+// confirmed against AdminSettingController.getSettings()'s raw.getOrDefault(...) fallbacks.
+const SETTING_RESET_DEFAULTS: Record<AdminSettingResetKey, () => void> = {
+  api_base_url: () => { settings.apiConfiguration.baseUrl = 'https://api.earsfor.you' },
+  api_version: () => { settings.apiConfiguration.apiVersion = 'v1' },
+  api_rate_limit_per_minute: () => { settings.apiConfiguration.rateLimitPerMinute = 120 },
+  api_timeout_ms: () => { settings.apiConfiguration.timeoutMs = 5000 },
+  email_api_key: () => { settings.emailConfiguration.apiKey = DEFAULT_EMAIL_API_KEY },
+  email_sender_email: () => { settings.emailConfiguration.senderEmail = 'badejoiseoluwa@gmail.com' },
+  email_sender_name: () => { settings.emailConfiguration.senderName = 'EarsForYou' },
+  otp_length: () => { settings.otpConfiguration.otpLength = 6 },
+  otp_expiry_minutes: () => { settings.otpConfiguration.otpExpiryMinutes = 10 },
+  otp_max_attempts: () => { settings.otpConfiguration.maxAttempts = 3 },
+  otp_delivery_channel: () => { settings.otpConfiguration.deliveryChannel = 'EMAIL' },
+  jwt_expiry_minutes: () => { settings.securitySettings.jwtExpiryMinutes = 60 },
+  jwt_refresh_expiry_days: () => { settings.securitySettings.refreshTokenExpiryDays = 7 },
+  security_max_login_attempts: () => { settings.securitySettings.maxLoginAttempts = 5 },
+  session_timeout_minutes: () => { settings.securitySettings.sessionTimeoutMinutes = 30 },
+  security_mfa_enabled: () => { settings.securitySettings.mfaEnabled = true },
+  security_ip_whitelist_enabled: () => { settings.securitySettings.ipWhitelistEnabled = false },
+  enable_ai_chat: () => { settings.aiConfiguration.enableAiChat = true },
+  ai_system_prompt: () => { settings.aiConfiguration.aiSystemPrompt = DEFAULT_AI_SYSTEM_PROMPT },
+}
+
+// Real backend guard (AdminSettingController.updateSettings): only writes email_api_key if the
+// incoming value does NOT contain 8 consecutive '*' characters - the full mask rendered by
+// maskApiKey() is 16 '*' chars, but the guard itself checks for an 8-char run, so any value
+// containing at least 8 consecutive asterisks (not just the exact 16-char mask) is silently
+// dropped. Mirrored here exactly, not simplified to "equals the full mask".
+const API_KEY_MASK_GUARD = '*'.repeat(8)
 
 function buildTelemetryTimeline(days = 14): AdminTelemetryPoint[] {
   const points: AdminTelemetryPoint[] = []
@@ -230,6 +276,21 @@ export const adminMockStore = {
     if (index !== -1) emergencyResources.splice(index, 1)
   },
   getSettings(): AdminSystemSettings {
+    return settings
+  },
+  // Replaces the whole stored settings object, mirroring the real backend's api-key masking
+  // guard: if the incoming apiKey contains an 8+ run of '*' (matching the mask the GET endpoint
+  // itself renders), the stored real key is kept as-is instead of being overwritten with the
+  // masked placeholder the admin re-submitted.
+  updateSettings(next: AdminSystemSettings): AdminSystemSettings {
+    const apiKey = next.emailConfiguration.apiKey.includes(API_KEY_MASK_GUARD)
+      ? settings.emailConfiguration.apiKey
+      : next.emailConfiguration.apiKey
+    settings = { ...next, emailConfiguration: { ...next.emailConfiguration, apiKey } }
+    return settings
+  },
+  resetSetting(key: AdminSettingResetKey): AdminSystemSettings {
+    SETTING_RESET_DEFAULTS[key]()
     return settings
   },
   getTelemetry(): AdminTelemetry {

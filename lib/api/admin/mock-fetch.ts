@@ -1,6 +1,6 @@
 import { adminMockStore } from './mock-store'
 import { ApiError, friendlyFor } from '../errors'
-import type { UpdateAdminProfilePayload, AdminEmergencyResourceInput } from './types'
+import type { UpdateAdminProfilePayload, AdminEmergencyResourceInput, AdminSystemSettings, AdminSettingResetKey } from './types'
 
 const DELAY_MS = 350
 
@@ -121,6 +121,17 @@ export async function adminMockFetch<T>(path: string, opts: Opts = {}): Promise<
   }
   if (pathname === '/api/v1/admins/settings' && method === 'GET') {
     return delay(adminMockStore.getSettings() as T)
+  }
+  if (pathname === '/api/v1/admins/settings' && method === 'PATCH') {
+    const body = opts.body as AdminSystemSettings
+    adminMockStore.updateSettings(body)
+    return delay({ message: 'System settings updated successfully. Changes are now live.' } as T)
+  }
+  const settingKeyMatch = pathname.match(/^\/api\/v1\/admins\/settings\/([a-z_]+)$/)
+  if (settingKeyMatch && method === 'DELETE') {
+    const key = settingKeyMatch[1] as AdminSettingResetKey
+    adminMockStore.resetSetting(key)
+    return delay({ message: `Setting '${key}' has been reset to system default.` } as T)
   }
   if (pathname === '/api/v1/admins/telemetry' && method === 'GET') {
     return delay(adminMockStore.getTelemetry() as T)
