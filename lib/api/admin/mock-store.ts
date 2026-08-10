@@ -107,10 +107,10 @@ const emergencyResources: AdminEmergencyResource[] = [
 let nextResourceId = 7
 
 const settings: AdminSystemSettings = {
-  apiConfiguration: { baseUrl: 'https://api.earsforyou.test', apiVersion: 'v1', rateLimitPerMinute: 60, timeoutMs: 30000 },
-  emailConfiguration: { apiKey: 'sk-x' + '*'.repeat(16) + '3f2a', senderEmail: 'noreply@earsforyou.test', senderName: 'Ears for You' },
+  apiConfiguration: { baseUrl: 'https://api.earsfor.you', apiVersion: 'v1', rateLimitPerMinute: 120, timeoutMs: 5000 },
+  emailConfiguration: { apiKey: 'sk-x' + '*'.repeat(16) + '3f2a', senderEmail: 'badejoiseoluwa@gmail.com', senderName: 'EarsForYou' },
   otpConfiguration: { otpLength: 6, otpExpiryMinutes: 10, maxAttempts: 3, deliveryChannel: 'EMAIL' },
-  securitySettings: { jwtExpiryMinutes: 60, refreshTokenExpiryDays: 7, maxLoginAttempts: 5, sessionTimeoutMinutes: 30, mfaEnabled: false, ipWhitelistEnabled: false },
+  securitySettings: { jwtExpiryMinutes: 60, refreshTokenExpiryDays: 7, maxLoginAttempts: 5, sessionTimeoutMinutes: 30, mfaEnabled: true, ipWhitelistEnabled: false },
   aiConfiguration: { enableAiChat: true, aiSystemPrompt: 'You are a mental health support assistant for Ears for You.' },
 }
 
