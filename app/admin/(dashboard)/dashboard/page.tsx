@@ -36,6 +36,13 @@ function triggerDownload(blob: Blob, filename: string) {
 export default function AdminDashboardPage() {
   const dashboard = useQuery({ queryKey: adminQk.dashboard, queryFn: getAdminDashboard })
   const broadcasts = useQuery({ queryKey: adminQk.broadcastHistory, queryFn: getAdminBroadcastHistory })
+  // Most-recent-first and capped to 5 entries, so a "Recent broadcasts" panel actually shows
+  // recent ones instead of every broadcast ever sent.
+  const recentBroadcasts = broadcasts.data
+    ? [...broadcasts.data.notifications]
+        .sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime())
+        .slice(0, 5)
+    : []
   const exportCsv = useMutation({
     mutationFn: downloadAdminDashboardExport,
     onSuccess: blob => triggerDownload(blob, 'platform-metrics.csv'),
@@ -88,13 +95,13 @@ export default function AdminDashboardPage() {
           <div className="rounded-2xl bg-card px-4 py-3.5">
             <Skeleton lines={3} />
           </div>
-        ) : broadcasts.data.notifications.length === 0 ? (
+        ) : recentBroadcasts.length === 0 ? (
           <div className="rounded-2xl bg-card px-4 py-6 text-center text-sm opacity-55">
             No broadcasts sent yet.
           </div>
         ) : (
           <div className="flex flex-col divide-y divide-fir/10 rounded-2xl bg-card px-4">
-            {broadcasts.data.notifications.map(b => (
+            {recentBroadcasts.map(b => (
               <div key={b.formattedId} className="flex items-center justify-between gap-3 py-3">
                 <div className="min-w-0">
                   <p className="truncate text-[14px] font-medium">{b.title}</p>

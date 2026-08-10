@@ -94,6 +94,10 @@ let invalidateQueries: ReturnType<typeof vi.fn>
 
 describe('AdminBroadcastsPage', () => {
   beforeEach(() => {
+    // Restores any per-test `vi.spyOn(endpoints, 'sendAdminBroadcast')` spy (and clears its call
+    // history) before the next test re-spies it, so call-count assertions in one test can't pick
+    // up calls left over from a previous test.
+    vi.restoreAllMocks()
     useQueryMock.mockReset()
     useMutationMock.mockReset()
     useQueryClientMock.mockReset()
@@ -148,6 +152,21 @@ describe('AdminBroadcastsPage', () => {
     expect(screen.getByText('Jul 28')).toBeInTheDocument()
   })
 
+  it('sorts the history list by sentAt descending, even when the data arrives oldest-first', () => {
+    mockQueries({ data: { ...HISTORY, notifications: [...HISTORY.notifications].reverse() } })
+    render(<AdminBroadcastsPage />)
+
+    const newer = screen.getByText('Service disruption notice') // sentAt 2026-08-05
+    const older = screen.getByText('New breathing exercise') // sentAt 2026-07-28
+    expect(newer.compareDocumentPosition(older) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('hides the "Broadcast history" heading when the history query errors, instead of leaving it orphaned', () => {
+    mockQueries({ isError: true, error: new ApiError(500, 'The server had a problem. Try again.') })
+    render(<AdminBroadcastsPage />)
+    expect(screen.queryByText('Broadcast history')).not.toBeInTheDocument()
+  })
+
   describe('compose form validation', () => {
     it('disables Send until both Title and Message are non-empty', async () => {
       mockQueries({ data: HISTORY })
@@ -165,6 +184,62 @@ describe('AdminBroadcastsPage', () => {
 
       await user.clear(screen.getByLabelText(/title/i))
       expect(sendButton).toBeDisabled()
+    })
+
+    it('caps Title and Message with a maxLength, matching the required-field validation posture', () => {
+      mockQueries({ data: HISTORY })
+      render(<AdminBroadcastsPage />)
+      expect(screen.getByLabelText(/title/i)).toHaveAttribute('maxLength', '120')
+      expect(screen.getByLabelText(/message/i)).toHaveAttribute('maxLength', '500')
+    })
+  })
+
+  describe('ALL_USERS confirmation', () => {
+    it('reveals a confirm step instead of sending immediately when segment is ALL_USERS (the default)', async () => {
+      vi.spyOn(endpoints, 'sendAdminBroadcast').mockResolvedValue({ message: 'Broadcast event successfully queued for delivery.' })
+      mockQueries({ data: HISTORY })
+      const user = userEvent.setup()
+      render(<AdminBroadcastsPage />)
+
+      await user.type(screen.getByLabelText(/title/i), 'Heads up')
+      await user.type(screen.getByLabelText(/message/i), 'Something happened')
+      await user.click(screen.getByRole('button', { name: /send broadcast/i }))
+
+      expect(endpoints.sendAdminBroadcast).not.toHaveBeenCalled()
+      expect(screen.getByRole('button', { name: /confirm send to all users/i })).toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: /confirm send to all users/i }))
+      expect(endpoints.sendAdminBroadcast).toHaveBeenCalledTimes(1)
+    })
+
+    it('lets the admin cancel out of the confirm step without sending anything', async () => {
+      vi.spyOn(endpoints, 'sendAdminBroadcast').mockResolvedValue({ message: 'Broadcast event successfully queued for delivery.' })
+      mockQueries({ data: HISTORY })
+      const user = userEvent.setup()
+      render(<AdminBroadcastsPage />)
+
+      await user.type(screen.getByLabelText(/title/i), 'Heads up')
+      await user.type(screen.getByLabelText(/message/i), 'Something happened')
+      await user.click(screen.getByRole('button', { name: /send broadcast/i }))
+      await user.click(screen.getByRole('button', { name: /cancel/i }))
+
+      expect(screen.queryByRole('button', { name: /confirm send to all users/i })).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /send broadcast/i })).toBeInTheDocument()
+      expect(endpoints.sendAdminBroadcast).not.toHaveBeenCalled()
+    })
+
+    it('sends immediately with a single click for the lower-blast-radius segments', async () => {
+      vi.spyOn(endpoints, 'sendAdminBroadcast').mockResolvedValue({ message: 'Broadcast event successfully queued for delivery.' })
+      mockQueries({ data: HISTORY })
+      const user = userEvent.setup()
+      render(<AdminBroadcastsPage />)
+
+      await user.type(screen.getByLabelText(/title/i), 'Heads up')
+      await user.type(screen.getByLabelText(/message/i), 'Something happened')
+      await user.click(screen.getByRole('button', { name: /re-engagement/i }))
+      await user.click(screen.getByRole('button', { name: /send broadcast/i }))
+
+      expect(endpoints.sendAdminBroadcast).toHaveBeenCalledTimes(1)
     })
   })
 
@@ -205,6 +280,7 @@ describe('AdminBroadcastsPage', () => {
 
       await user.type(screen.getByLabelText(/title/i), 'Heads up')
       await user.type(screen.getByLabelText(/message/i), 'Something happened')
+      await user.click(screen.getByRole('button', { name: /re-engagement/i }))
       await user.click(screen.getByRole('button', { name: /send broadcast/i }))
 
       rejectSend(new ApiError(500, 'The server had a problem. Try again.'))
@@ -213,6 +289,37 @@ describe('AdminBroadcastsPage', () => {
       expect(screen.getByLabelText(/title/i)).toHaveValue('Heads up')
       expect(screen.getByLabelText(/message/i)).toHaveValue('Something happened')
       expect(invalidateQueries).not.toHaveBeenCalled()
+    })
+
+    it('does not drop the in-flight send when a field is edited while it is still pending', async () => {
+      let resolveSend: (value: unknown) => void = () => {}
+      const pending = new Promise(resolve => { resolveSend = resolve })
+      vi.spyOn(endpoints, 'sendAdminBroadcast').mockReturnValue(pending)
+      mockQueries({ data: HISTORY })
+      const user = userEvent.setup()
+      render(<AdminBroadcastsPage />)
+
+      await user.type(screen.getByLabelText(/title/i), 'Heads up')
+      await user.type(screen.getByLabelText(/message/i), 'Something happened')
+      await user.click(screen.getByRole('button', { name: /re-engagement/i }))
+      await user.click(screen.getByRole('button', { name: /send broadcast/i }))
+
+      // The send is still in flight (the mocked promise hasn't resolved yet). The submit button
+      // shows its busy state and is disabled, so a second click can't queue a duplicate broadcast.
+      expect(screen.getByRole('button', { name: /one moment/i })).toBeDisabled()
+
+      // Edit a field mid-flight - this must not detach from the in-flight mutation.
+      await user.type(screen.getByLabelText(/title/i), '!')
+
+      resolveSend({ message: 'Broadcast event successfully queued for delivery.' })
+
+      expect(await screen.findByRole('status')).toHaveTextContent('Broadcast queued for delivery.')
+      expect(screen.getByLabelText(/title/i)).toHaveValue('')
+      expect(screen.getByLabelText(/message/i)).toHaveValue('')
+      expect(endpoints.sendAdminBroadcast).toHaveBeenCalledTimes(1)
+      await vi.waitFor(() => {
+        expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: adminQk.broadcastHistory })
+      })
     })
   })
 })

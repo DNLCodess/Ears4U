@@ -208,11 +208,15 @@ export const adminMockStore = {
   getBroadcastHistory(): AdminNotificationDashboardResponse {
     return broadcastHistory
   },
+  // Mirrors the real backend: history rows are synthesized from an audit log, not the admin's
+  // composed title/message - `title` is always the literal "Broadcast Event" and `message` is
+  // always "Sent by: " + the sending admin's email (reuses the same mock `profile` the Profile
+  // page reads/writes, so a changed admin email is reflected here too).
   sendBroadcast(payload: AdminBroadcastPayload): AdminBroadcastHistoryItem {
     const entry: AdminBroadcastHistoryItem = {
       formattedId: `NTF-${String(nextNotificationId++).padStart(4, '0')}`,
-      title: payload.title,
-      message: payload.message,
+      title: 'Broadcast Event',
+      message: `Sent by: ${profile.adminEmail}`,
       segment: payload.segment,
       sentAt: new Date().toISOString(),
     }

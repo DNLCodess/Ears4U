@@ -139,6 +139,31 @@ describe('AdminDashboardPage', () => {
     expect(screen.getByText('AI chat sessions')).toBeInTheDocument()
   })
 
+  it('shows only the 5 most recent broadcasts, newest first, even when more exist', () => {
+    const many: AdminNotificationDashboardResponse = {
+      totalSent: 6,
+      toAllUsers: 6,
+      reEngagement: 0,
+      notifications: [
+        { formattedId: 'NTF-0001', title: 'One', message: 'm1', segment: 'ALL_USERS', sentAt: '2026-08-01T00:00:00Z' },
+        { formattedId: 'NTF-0002', title: 'Two', message: 'm2', segment: 'ALL_USERS', sentAt: '2026-08-02T00:00:00Z' },
+        { formattedId: 'NTF-0003', title: 'Three', message: 'm3', segment: 'ALL_USERS', sentAt: '2026-08-03T00:00:00Z' },
+        { formattedId: 'NTF-0004', title: 'Four', message: 'm4', segment: 'ALL_USERS', sentAt: '2026-08-04T00:00:00Z' },
+        { formattedId: 'NTF-0005', title: 'Five', message: 'm5', segment: 'ALL_USERS', sentAt: '2026-08-05T00:00:00Z' },
+        { formattedId: 'NTF-0006', title: 'Six', message: 'm6', segment: 'ALL_USERS', sentAt: '2026-08-06T00:00:00Z' },
+      ],
+    }
+    mockQueries({ dashboard: { data: METRICS }, broadcasts: { data: many } })
+    render(<AdminDashboardPage />)
+
+    expect(screen.queryByText('One')).not.toBeInTheDocument()
+    ;['Six', 'Five', 'Four', 'Three', 'Two'].forEach(title => expect(screen.getByText(title)).toBeInTheDocument())
+
+    const newest = screen.getByText('Six')
+    const fifthNewest = screen.getByText('Two')
+    expect(newest.compareDocumentPosition(fifthNewest) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
   it('renders "No broadcasts sent yet." when the broadcast list is empty', () => {
     mockQueries({
       dashboard: { data: METRICS },
