@@ -304,12 +304,18 @@ describe('AdminBroadcastsPage', () => {
       await user.click(screen.getByRole('button', { name: /re-engagement/i }))
       await user.click(screen.getByRole('button', { name: /send broadcast/i }))
 
-      // The send is still in flight (the mocked promise hasn't resolved yet). The submit button
-      // shows its busy state and is disabled, so a second click can't queue a duplicate broadcast.
-      expect(screen.getByRole('button', { name: /one moment/i })).toBeDisabled()
-
-      // Edit a field mid-flight - this must not detach from the in-flight mutation.
+      // Edit a field mid-flight (the mocked promise hasn't resolved yet) - this is the race:
+      // under the original bug, the field's onChange called mutation.reset() unconditionally,
+      // which in real TanStack Query v5 detaches from the in-flight mutation and flips isPending
+      // back to false, reverting the button to an enabled "Send broadcast" and re-losing the
+      // original send's eventual onSuccess. The fake mutation used in this test suite does model
+      // isPending faithfully (it's a real useState the component's mutation.isPending reads), so
+      // asserting the button is still busy/disabled *after* this edit - not before it, which
+      // would pass identically under the old, buggy code - is what actually exercises the fix.
       await user.type(screen.getByLabelText(/title/i), '!')
+
+      expect(screen.queryByRole('button', { name: /send broadcast/i })).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /one moment/i })).toBeDisabled()
 
       resolveSend({ message: 'Broadcast event successfully queued for delivery.' })
 
