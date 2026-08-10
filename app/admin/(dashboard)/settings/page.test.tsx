@@ -18,39 +18,37 @@ vi.mock('@tanstack/react-query', () => ({
   useQueryClient: () => useQueryClientMock(),
 }))
 
-type MutationOpts<TVariables> = {
-  mutationFn: (variables: TVariables) => Promise<unknown>
-  onSuccess?: (data: unknown, variables: TVariables) => unknown
+type MutationOpts = {
+  mutationFn: () => Promise<unknown>
+  onSuccess?: (data: unknown) => unknown
   onError?: (error: unknown) => unknown
 }
 
-// Mirrors the real useMutation closely enough to exercise onSuccess/onError and, crucially, to
-// track `variables` the way react-query does - the page's per-field "Reset to default" buttons
-// key their busy/error state off `resetMutation.variables === settingKey` since all 19 fields
-// share a single mutation instance.
-function useFakeMutation<TVariables = void>(opts: MutationOpts<TVariables>) {
-  const [state, setState] = useState<{
-    isPending: boolean
-    isError: boolean
-    error: unknown
-    variables: TVariables | undefined
-  }>({ isPending: false, isError: false, error: undefined, variables: undefined })
+// A small stand-in for react-query's real useMutation, close enough to exercise onSuccess/onError
+// and busy state. Each `useMutation(...)` call site gets its own independent hook instance (React
+// tracks hooks per component fiber), which is exactly the property under test for the page's
+// per-field "Reset to default" buttons: every field now owns its own mutation (via its own
+// ResetAction instance), so one field's pending/error state can never bleed into another's.
+function useFakeMutation(opts: MutationOpts) {
+  const [state, setState] = useState<{ isPending: boolean; isError: boolean; error: unknown }>({
+    isPending: false, isError: false, error: undefined,
+  })
   return {
     ...state,
-    mutate: (variables?: TVariables) => {
-      setState(s => ({ ...s, isPending: true, isError: false, error: undefined, variables: variables as TVariables }))
-      void opts.mutationFn(variables as TVariables).then(
+    mutate: () => {
+      setState({ isPending: true, isError: false, error: undefined })
+      void opts.mutationFn().then(
         data => {
-          setState(s => ({ ...s, isPending: false, isError: false, error: undefined }))
-          opts.onSuccess?.(data, variables as TVariables)
+          setState({ isPending: false, isError: false, error: undefined })
+          opts.onSuccess?.(data)
         },
         error => {
-          setState(s => ({ ...s, isPending: false, isError: true, error }))
+          setState({ isPending: false, isError: true, error })
           opts.onError?.(error)
         },
       )
     },
-    reset: () => setState(s => ({ ...s, isPending: false, isError: false, error: undefined })),
+    reset: () => setState({ isPending: false, isError: false, error: undefined }),
   }
 }
 
@@ -79,6 +77,22 @@ const SETTINGS: AdminSystemSettings = {
     sessionTimeoutMinutes: 30, mfaEnabled: true, ipWhitelistEnabled: false,
   },
   aiConfiguration: { enableAiChat: true, aiSystemPrompt: 'You are a mental health support assistant for Ears for You.' },
+}
+
+// "Reset to default" buttons render in the same fixed order as the fields themselves - API config
+// x4, email key, email x2, OTP length/expiry/attempts/channel, security x6, AI x2. Named indices
+// avoid re-deriving this each time a test needs a specific field's button.
+const RESET_INDEX = {
+  apiBaseUrl: 0,
+  apiVersion: 1,
+  emailApiKey: 4,
+  senderName: 6,
+  otpLength: 7,
+  jwtExpiryMinutes: 11,
+  jwtRefreshExpiryDays: 12,
+  mfaEnabled: 15,
+  ipWhitelistEnabled: 16,
+  aiSystemPrompt: 18,
 }
 
 let invalidateQueries: ReturnType<typeof vi.fn>
@@ -139,6 +153,7 @@ describe('AdminSettingsPage', () => {
     expect(screen.getByRole('button', { name: 'EMAIL' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: 'SMS' })).toHaveAttribute('aria-pressed', 'false')
     expect(screen.getByRole('button', { name: 'BOTH' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('group', { name: 'Delivery channel' })).toBeInTheDocument()
 
     expect(screen.getByLabelText('JWT expiry (minutes)')).toHaveValue(60)
     expect(screen.getByLabelText('Refresh token expiry (days)')).toHaveValue(7)
@@ -185,6 +200,22 @@ describe('AdminSettingsPage', () => {
       rejectSave(new ApiError(500, 'The server had a problem. Try again.'))
       expect(await screen.findByRole('alert')).toHaveTextContent('The server had a problem. Try again.')
     })
+
+    it('treats an empty API key draft as unchanged, never sending a literal empty string', async () => {
+      // Guards against a genuinely destructive accidental wipe: the backend's masking guard only
+      // blocks values containing an 8+ run of '*', so an empty string is NOT caught by it and
+      // would really overwrite the stored key if sent as-is.
+      vi.spyOn(endpoints, 'updateAdminSettings').mockResolvedValue({ message: 'ok' })
+      mockQueries({ data: SETTINGS })
+      const user = userEvent.setup()
+      render(<AdminSettingsPage />)
+
+      await user.click(screen.getByRole('button', { name: 'Change API key' }))
+      expect(screen.getByLabelText('New API key')).toHaveValue('')
+      await user.click(screen.getByRole('button', { name: 'Save changes' }))
+
+      expect(endpoints.updateAdminSettings).toHaveBeenCalledWith(SETTINGS)
+    })
   })
 
   describe('Reset to default', () => {
@@ -194,33 +225,130 @@ describe('AdminSettingsPage', () => {
       const user = userEvent.setup()
       render(<AdminSettingsPage />)
 
-      // "Reset to default" buttons render in the same fixed order as the fields themselves
-      // (API config x4, email key, email x2, OTP length/expiry/attempts/channel, ...) - index 7
-      // (0-based) is "OTP length", the 8th field on the page.
       const resetButtons = screen.getAllByRole('button', { name: 'Reset to default' })
-      await user.click(resetButtons[7])
+      await user.click(resetButtons[RESET_INDEX.otpLength])
 
       expect(endpoints.resetAdminSetting).toHaveBeenCalledWith('otp_length')
     })
 
-    it('invalidates and re-syncs the form from the query cache on success', async () => {
+    it('applies only the reset field from the refetched settings, leaving an unrelated unsaved edit and an unrelated server-side change alone', async () => {
       vi.spyOn(endpoints, 'resetAdminSetting').mockResolvedValue({ message: 'ok' })
-      const resetSettings: AdminSystemSettings = {
+      // Simulates the server's post-reset state: api_base_url really did change to its default,
+      // but senderName also differs from SETTINGS here (standing in for a value that changed for
+      // some unrelated reason server-side) - the targeted merge must not pull that second, unasked
+      // -for change into the form; only api_base_url should move.
+      const fresh: AdminSystemSettings = {
         ...SETTINGS,
-        otpConfiguration: { ...SETTINGS.otpConfiguration, otpLength: 6 },
+        apiConfiguration: { ...SETTINGS.apiConfiguration, baseUrl: 'https://reset-default.example.com' },
+        emailConfiguration: { ...SETTINGS.emailConfiguration, senderName: 'Some Other Server Value' },
       }
-      getQueryData.mockReturnValue(resetSettings)
+      getQueryData.mockReturnValue(fresh)
+      mockQueries({ data: SETTINGS })
+      const user = userEvent.setup()
+      render(<AdminSettingsPage />)
+
+      // Edit Sender name locally first (an in-progress, unsaved edit).
+      const senderName = screen.getByLabelText('Sender name')
+      await user.clear(senderName)
+      await user.type(senderName, 'My Unsaved Edit')
+
+      const resetButtons = screen.getAllByRole('button', { name: 'Reset to default' })
+      await user.click(resetButtons[RESET_INDEX.apiBaseUrl])
+
+      await vi.waitFor(() => {
+        expect(screen.getByLabelText('Base URL')).toHaveValue('https://reset-default.example.com')
+      })
+      // Neither the admin's own unsaved edit nor the unrelated fresh-cache value clobbered it.
+      expect(screen.getByLabelText('Sender name')).toHaveValue('My Unsaved Edit')
+    })
+
+    it('a failed reset on one field does not clear a different field\'s already-shown error', async () => {
+      vi.spyOn(endpoints, 'resetAdminSetting')
+        .mockRejectedValueOnce(new ApiError(500, 'The server had a problem. Try again.'))
+        .mockResolvedValueOnce({ message: 'ok' })
+      getQueryData.mockReturnValue(SETTINGS)
       mockQueries({ data: SETTINGS })
       const user = userEvent.setup()
       render(<AdminSettingsPage />)
 
       const resetButtons = screen.getAllByRole('button', { name: 'Reset to default' })
-      await user.click(resetButtons[0])
+      await user.click(resetButtons[RESET_INDEX.apiBaseUrl])
+      expect(await screen.findByRole('alert')).toHaveTextContent('The server had a problem. Try again.')
+
+      await user.click(resetButtons[RESET_INDEX.apiVersion])
+      await vi.waitFor(() => {
+        expect(endpoints.resetAdminSetting).toHaveBeenCalledWith('api_version')
+      })
+
+      // A single shared mutation would have cleared this the moment the second reset started.
+      expect(screen.getByRole('alert')).toHaveTextContent('The server had a problem. Try again.')
+    })
+
+    it('resetting jwt_expiry_minutes does not touch the adjacent jwt_refresh_expiry_days field', async () => {
+      vi.spyOn(endpoints, 'resetAdminSetting').mockResolvedValue({ message: 'ok' })
+      const fresh: AdminSystemSettings = {
+        ...SETTINGS,
+        securitySettings: { ...SETTINGS.securitySettings, jwtExpiryMinutes: 999, refreshTokenExpiryDays: 111 },
+      }
+      getQueryData.mockReturnValue(fresh)
+      mockQueries({ data: SETTINGS })
+      const user = userEvent.setup()
+      render(<AdminSettingsPage />)
+
+      const resetButtons = screen.getAllByRole('button', { name: 'Reset to default' })
+      await user.click(resetButtons[RESET_INDEX.jwtExpiryMinutes])
+
+      expect(endpoints.resetAdminSetting).toHaveBeenCalledWith('jwt_expiry_minutes')
+      await vi.waitFor(() => {
+        expect(screen.getByLabelText('JWT expiry (minutes)')).toHaveValue(999)
+      })
+      // fresh's refreshTokenExpiryDays (111) must NOT have propagated - only the reset key did.
+      expect(screen.getByLabelText('Refresh token expiry (days)')).toHaveValue(7)
+    })
+
+    it('resetting security_mfa_enabled does not touch the adjacent security_ip_whitelist_enabled field', async () => {
+      vi.spyOn(endpoints, 'resetAdminSetting').mockResolvedValue({ message: 'ok' })
+      const fresh: AdminSystemSettings = {
+        ...SETTINGS,
+        securitySettings: { ...SETTINGS.securitySettings, mfaEnabled: false, ipWhitelistEnabled: true },
+      }
+      getQueryData.mockReturnValue(fresh)
+      mockQueries({ data: SETTINGS })
+      const user = userEvent.setup()
+      render(<AdminSettingsPage />)
+
+      const resetButtons = screen.getAllByRole('button', { name: 'Reset to default' })
+      await user.click(resetButtons[RESET_INDEX.mfaEnabled])
+
+      expect(endpoints.resetAdminSetting).toHaveBeenCalledWith('security_mfa_enabled')
+      await vi.waitFor(() => {
+        expect(screen.getByRole('switch', { name: 'Multi-factor authentication' })).toHaveAttribute('aria-checked', 'false')
+      })
+      // fresh's ipWhitelistEnabled (true) must NOT have propagated - only the reset key did.
+      expect(screen.getByRole('switch', { name: 'IP whitelist' })).toHaveAttribute('aria-checked', 'false')
+    })
+
+    it('resetting email_api_key clears an in-progress "Change API key" draft', async () => {
+      vi.spyOn(endpoints, 'resetAdminSetting').mockResolvedValue({ message: 'ok' })
+      const fresh: AdminSystemSettings = {
+        ...SETTINGS,
+        emailConfiguration: { ...SETTINGS.emailConfiguration, apiKey: 'sk-y****************9z1c' },
+      }
+      getQueryData.mockReturnValue(fresh)
+      mockQueries({ data: SETTINGS })
+      const user = userEvent.setup()
+      render(<AdminSettingsPage />)
+
+      await user.click(screen.getByRole('button', { name: 'Change API key' }))
+      await user.type(screen.getByLabelText('New API key'), 'sk-typed-but-not-saved')
+
+      const resetButtons = screen.getAllByRole('button', { name: 'Reset to default' })
+      await user.click(resetButtons[RESET_INDEX.emailApiKey])
 
       await vi.waitFor(() => {
-        expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: adminQk.settings })
+        expect(screen.getByText('sk-y****************9z1c')).toBeInTheDocument()
       })
-      expect(getQueryData).toHaveBeenCalledWith(adminQk.settings)
+      expect(screen.queryByLabelText('New API key')).not.toBeInTheDocument()
     })
   })
 
@@ -237,6 +365,19 @@ describe('AdminSettingsPage', () => {
 
       expect(screen.queryByText('sk-x****************3f2a')).not.toBeInTheDocument()
       expect(screen.getByLabelText('New API key')).toHaveValue('')
+    })
+
+    it('"Cancel" returns to the masked display without submitting anything', async () => {
+      mockQueries({ data: SETTINGS })
+      const user = userEvent.setup()
+      render(<AdminSettingsPage />)
+
+      await user.click(screen.getByRole('button', { name: 'Change API key' }))
+      await user.type(screen.getByLabelText('New API key'), 'sk-typed-but-cancelled')
+      await user.click(screen.getByRole('button', { name: 'Cancel' }))
+
+      expect(screen.queryByLabelText('New API key')).not.toBeInTheDocument()
+      expect(screen.getByText('sk-x****************3f2a')).toBeInTheDocument()
     })
 
     it('sends the typed value in place of the masked string on the next Save', async () => {
