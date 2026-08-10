@@ -10,8 +10,8 @@ import { Field } from '@/components/ui/field'
 import { Button } from '@/components/ui/button'
 import { UserManageSheet } from '@/components/admin/user-manage-sheet'
 
-// Status filter query values are a best-guess ('ACTIVE'/'SUSPENDED', uppercase to match the
-// confirmed "ALL" default's casing) - see the comment on getAdminUsers in endpoints.ts.
+// Status filter query values, confirmed by the backend team - see the comment on getAdminUsers
+// in endpoints.ts.
 const STATUS_OPTIONS: { value: '' | 'ACTIVE' | 'SUSPENDED'; label: string }[] = [
   { value: '', label: 'All' },
   { value: 'ACTIVE', label: 'Active' },

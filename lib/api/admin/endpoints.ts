@@ -138,11 +138,8 @@ export async function getAdminAnalytics(): Promise<AdminAnalytics> {
 
 export const downloadAdminDashboardExport = () => adminApiFetchBlob('/api/v1/admins/dashboard/exports')
 
-// Backend GET /api/v1/admins/users `status` query param only has its default value ("ALL")
-// confirmed from source - the class that interprets non-default values, UserSpecification, is not
-// present in the available backend source tree. 'ACTIVE'/'SUSPENDED' is a best-guess only,
-// matching "ALL"'s uppercase casing convention - unlike every other fix in this file, which is
-// directly confirmed from reading Java source.
+// Backend GET /api/v1/admins/users `status` query param: confirmed by the backend team to accept
+// 'ALL' (default), 'ACTIVE', 'SUSPENDED', case-insensitive.
 export function getAdminUsers(
   params: { search?: string; status?: 'ACTIVE' | 'SUSPENDED'; page?: number; size?: number } = {},
 ) {
