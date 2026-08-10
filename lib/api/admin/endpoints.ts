@@ -7,7 +7,7 @@ import type {
   AdminAnalytics, AdminAnalyticsResponse,
   AdminUsersPage, AdminAuditLogItem, AdminEmergencyDashboard,
   AdminEmergencyResource, AdminEmergencyResourceInput,
-  AdminSystemSettings, AdminSettingResetKey, AdminTelemetry,
+  AdminSystemSettings, AdminSystemSettingsUpdate, AdminSettingResetKey, AdminTelemetry,
 } from './types'
 
 export async function adminLogin(email: string, password: string): Promise<void> {
@@ -193,7 +193,7 @@ export const getAdminTelemetry = () => adminApiFetch<AdminTelemetry>('/api/v1/ad
 // unchanged section back is harmless (the backend just rewrites the same values), except the
 // masked API key, which the backend detects and skips writing (see mock-store.ts for the mirrored
 // guard in mock mode).
-export const updateAdminSettings = (settings: AdminSystemSettings) =>
+export const updateAdminSettings = (settings: AdminSystemSettingsUpdate) =>
   adminApiFetch('/api/v1/admins/settings', { method: 'PATCH', body: settings })
 // key is one of the 19 flat Redis key names from the design spec's table (e.g. 'api_base_url'),
 // not a nested DTO field name - sent as a path variable, not a query string or body.

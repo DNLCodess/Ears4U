@@ -1,6 +1,6 @@
 import { adminMockStore } from './mock-store'
 import { ApiError, friendlyFor } from '../errors'
-import type { UpdateAdminProfilePayload, AdminEmergencyResourceInput, AdminSystemSettings, AdminSettingResetKey } from './types'
+import type { UpdateAdminProfilePayload, AdminEmergencyResourceInput, AdminSystemSettingsUpdate, AdminSettingResetKey } from './types'
 
 const DELAY_MS = 350
 
@@ -123,7 +123,7 @@ export async function adminMockFetch<T>(path: string, opts: Opts = {}): Promise<
     return delay(adminMockStore.getSettings() as T)
   }
   if (pathname === '/api/v1/admins/settings' && method === 'PATCH') {
-    const body = opts.body as AdminSystemSettings
+    const body = opts.body as AdminSystemSettingsUpdate
     adminMockStore.updateSettings(body)
     return delay({ message: 'System settings updated successfully. Changes are now live.' } as T)
   }

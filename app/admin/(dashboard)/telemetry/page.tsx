@@ -6,6 +6,7 @@ import type { AdminTelemetry } from '@/lib/api/admin/types'
 import { TimeSeriesChart } from '@/components/admin/time-series-chart'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorState } from '@/components/ui/error-state'
+import { bounds } from '@/app/admin/(dashboard)/analytics/page'
 
 type MetricKey = 'totalRequests' | 'successfulRequests' | 'failedRequests' | 'averageLatencyMs'
 
@@ -24,20 +25,6 @@ const METRIC_CARDS: { key: MetricKey; label: string; format: (v: number) => stri
 const STATUS_BADGE: Record<AdminTelemetry['providerStatus'], { label: string; className: string }> = {
   OPERATIONAL: { label: 'Operational', className: 'bg-leaf/15 text-leaf' },
   OFFLINE: { label: 'Offline', className: 'bg-clay/15 text-clay' },
-}
-
-// Chart bounds helper, matching the padding approach already established for the Analytics page's
-// three charts (`bounds` in app/admin/(dashboard)/analytics/page.tsx). Kept as a small local copy
-// rather than importing across sibling route modules or introducing a new shared module for one
-// function - this task's scope is this page file only.
-function bounds(points: { value: number }[]): [number, number] {
-  if (points.length === 0) return [0, 1]
-  const values = points.map(p => p.value)
-  const min = Math.min(...values)
-  const max = Math.max(...values)
-  if (min === max) return [min - 1, max + 1]
-  const pad = (max - min) * 0.05
-  return [min - pad, max + pad]
 }
 
 export default function AdminTelemetryPage() {

@@ -4,7 +4,7 @@ import type {
   AdminAnalyticsResponse, AdminTimeSeriesPoint, AdminAiUsagePoint,
   AdminUserSummary, AdminUsersPage, AdminAuditLogItem, AdminEmergencyResource, AdminEmergencyDashboard,
   AdminEmergencyResourceInput,
-  AdminSystemSettings, AdminSettingResetKey, AdminTelemetry, AdminTelemetryPoint,
+  AdminSystemSettings, AdminSystemSettingsUpdate, AdminSettingResetKey, AdminTelemetry, AdminTelemetryPoint,
 } from './types'
 
 let profile: AdminProfile = {
@@ -131,26 +131,29 @@ let settings: AdminSystemSettings = {
 // nested AdminSystemSettings field it resets and to what default, per the design spec's table
 // (docs/superpowers/specs/2026-08-10-earsforyou-admin-settings-telemetry-design.md). Values are
 // confirmed against AdminSettingController.getSettings()'s raw.getOrDefault(...) fallbacks.
+// Each entry rebuilds a fresh `settings` object (and a fresh nested section object) rather than
+// mutating the existing one in place, so nothing that already holds a reference to a previous
+// `settings` snapshot (e.g. a value returned from an earlier getSettings() call) is affected.
 const SETTING_RESET_DEFAULTS: Record<AdminSettingResetKey, () => void> = {
-  api_base_url: () => { settings.apiConfiguration.baseUrl = 'https://api.earsfor.you' },
-  api_version: () => { settings.apiConfiguration.apiVersion = 'v1' },
-  api_rate_limit_per_minute: () => { settings.apiConfiguration.rateLimitPerMinute = 120 },
-  api_timeout_ms: () => { settings.apiConfiguration.timeoutMs = 5000 },
-  email_api_key: () => { settings.emailConfiguration.apiKey = DEFAULT_EMAIL_API_KEY },
-  email_sender_email: () => { settings.emailConfiguration.senderEmail = 'badejoiseoluwa@gmail.com' },
-  email_sender_name: () => { settings.emailConfiguration.senderName = 'EarsForYou' },
-  otp_length: () => { settings.otpConfiguration.otpLength = 6 },
-  otp_expiry_minutes: () => { settings.otpConfiguration.otpExpiryMinutes = 10 },
-  otp_max_attempts: () => { settings.otpConfiguration.maxAttempts = 3 },
-  otp_delivery_channel: () => { settings.otpConfiguration.deliveryChannel = 'EMAIL' },
-  jwt_expiry_minutes: () => { settings.securitySettings.jwtExpiryMinutes = 60 },
-  jwt_refresh_expiry_days: () => { settings.securitySettings.refreshTokenExpiryDays = 7 },
-  security_max_login_attempts: () => { settings.securitySettings.maxLoginAttempts = 5 },
-  session_timeout_minutes: () => { settings.securitySettings.sessionTimeoutMinutes = 30 },
-  security_mfa_enabled: () => { settings.securitySettings.mfaEnabled = true },
-  security_ip_whitelist_enabled: () => { settings.securitySettings.ipWhitelistEnabled = false },
-  enable_ai_chat: () => { settings.aiConfiguration.enableAiChat = true },
-  ai_system_prompt: () => { settings.aiConfiguration.aiSystemPrompt = DEFAULT_AI_SYSTEM_PROMPT },
+  api_base_url: () => { settings = { ...settings, apiConfiguration: { ...settings.apiConfiguration, baseUrl: 'https://api.earsfor.you' } } },
+  api_version: () => { settings = { ...settings, apiConfiguration: { ...settings.apiConfiguration, apiVersion: 'v1' } } },
+  api_rate_limit_per_minute: () => { settings = { ...settings, apiConfiguration: { ...settings.apiConfiguration, rateLimitPerMinute: 120 } } },
+  api_timeout_ms: () => { settings = { ...settings, apiConfiguration: { ...settings.apiConfiguration, timeoutMs: 5000 } } },
+  email_api_key: () => { settings = { ...settings, emailConfiguration: { ...settings.emailConfiguration, apiKey: DEFAULT_EMAIL_API_KEY } } },
+  email_sender_email: () => { settings = { ...settings, emailConfiguration: { ...settings.emailConfiguration, senderEmail: 'badejoiseoluwa@gmail.com' } } },
+  email_sender_name: () => { settings = { ...settings, emailConfiguration: { ...settings.emailConfiguration, senderName: 'EarsForYou' } } },
+  otp_length: () => { settings = { ...settings, otpConfiguration: { ...settings.otpConfiguration, otpLength: 6 } } },
+  otp_expiry_minutes: () => { settings = { ...settings, otpConfiguration: { ...settings.otpConfiguration, otpExpiryMinutes: 10 } } },
+  otp_max_attempts: () => { settings = { ...settings, otpConfiguration: { ...settings.otpConfiguration, maxAttempts: 3 } } },
+  otp_delivery_channel: () => { settings = { ...settings, otpConfiguration: { ...settings.otpConfiguration, deliveryChannel: 'EMAIL' } } },
+  jwt_expiry_minutes: () => { settings = { ...settings, securitySettings: { ...settings.securitySettings, jwtExpiryMinutes: 60 } } },
+  jwt_refresh_expiry_days: () => { settings = { ...settings, securitySettings: { ...settings.securitySettings, refreshTokenExpiryDays: 7 } } },
+  security_max_login_attempts: () => { settings = { ...settings, securitySettings: { ...settings.securitySettings, maxLoginAttempts: 5 } } },
+  session_timeout_minutes: () => { settings = { ...settings, securitySettings: { ...settings.securitySettings, sessionTimeoutMinutes: 30 } } },
+  security_mfa_enabled: () => { settings = { ...settings, securitySettings: { ...settings.securitySettings, mfaEnabled: true } } },
+  security_ip_whitelist_enabled: () => { settings = { ...settings, securitySettings: { ...settings.securitySettings, ipWhitelistEnabled: false } } },
+  enable_ai_chat: () => { settings = { ...settings, aiConfiguration: { ...settings.aiConfiguration, enableAiChat: true } } },
+  ai_system_prompt: () => { settings = { ...settings, aiConfiguration: { ...settings.aiConfiguration, aiSystemPrompt: DEFAULT_AI_SYSTEM_PROMPT } } },
 }
 
 // Real backend guard (AdminSettingController.updateSettings): only writes email_api_key if the
@@ -275,23 +278,31 @@ export const adminMockStore = {
     const index = emergencyResources.findIndex(r => r.id === id)
     if (index !== -1) emergencyResources.splice(index, 1)
   },
+  // Deep-copied so the caller can never hold a live reference into this module's internal
+  // `settings` object - e.g. the settings page's own `form` state would otherwise alias the same
+  // nested section objects as the store until the next full replace, so editing one would (via
+  // shared references) silently edit the other before either was ever saved.
   getSettings(): AdminSystemSettings {
-    return settings
+    return structuredClone(settings)
   },
-  // Replaces the whole stored settings object, mirroring the real backend's api-key masking
-  // guard: if the incoming apiKey contains an 8+ run of '*' (matching the mask the GET endpoint
-  // itself renders), the stored real key is kept as-is instead of being overwritten with the
-  // masked placeholder the admin re-submitted.
-  updateSettings(next: AdminSystemSettings): AdminSystemSettings {
-    const apiKey = next.emailConfiguration.apiKey.includes(API_KEY_MASK_GUARD)
+  // Replaces the whole stored settings object, mirroring the real backend's api-key masking guard
+  // and its `!= null` skip-write check: an absent/undefined apiKey (the frontend's "admin didn't
+  // type a new key" case) or one containing an 8+ run of '*' (the mask the GET endpoint itself
+  // renders) both leave the stored real key untouched, rather than overwriting it with an empty or
+  // masked placeholder. Stores a deep copy of the caller's object, never the object reference
+  // itself, so a later in-place edit to the caller's own copy (e.g. the page's `form` state) can't
+  // reach back into this module's internal state.
+  updateSettings(next: AdminSystemSettingsUpdate): AdminSystemSettings {
+    const incomingApiKey = next.emailConfiguration.apiKey
+    const apiKey = incomingApiKey == null || incomingApiKey.includes(API_KEY_MASK_GUARD)
       ? settings.emailConfiguration.apiKey
-      : next.emailConfiguration.apiKey
-    settings = { ...next, emailConfiguration: { ...next.emailConfiguration, apiKey } }
-    return settings
+      : incomingApiKey
+    settings = structuredClone({ ...next, emailConfiguration: { ...next.emailConfiguration, apiKey } })
+    return structuredClone(settings)
   },
   resetSetting(key: AdminSettingResetKey): AdminSystemSettings {
     SETTING_RESET_DEFAULTS[key]()
-    return settings
+    return structuredClone(settings)
   },
   getTelemetry(): AdminTelemetry {
     return telemetry

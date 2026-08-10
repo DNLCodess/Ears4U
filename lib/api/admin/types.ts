@@ -139,6 +139,14 @@ export interface AdminSystemSettings {
   securitySettings: { jwtExpiryMinutes: number; refreshTokenExpiryDays: number; maxLoginAttempts: number; sessionTimeoutMinutes: number; mfaEnabled: boolean; ipWhitelistEnabled: boolean }
   aiConfiguration: { enableAiChat: boolean; aiSystemPrompt: string }
 }
+// Same shape as AdminSystemSettings, except emailConfiguration.apiKey is optional. The settings
+// page's Save action must be able to send a PATCH that omits apiKey entirely - not an empty string,
+// not the possibly-empty fetched/masked value - whenever the admin didn't actually type a new key,
+// so the backend's own `!= null` skip-write check is the thing that decides whether the stored key
+// changes, rather than the frontend guessing at a value to resend.
+export type AdminSystemSettingsUpdate = Omit<AdminSystemSettings, 'emailConfiguration'> & {
+  emailConfiguration: Omit<AdminSystemSettings['emailConfiguration'], 'apiKey'> & { apiKey?: string }
+}
 export type AdminSettingResetKey =
   | 'api_base_url' | 'api_version' | 'api_rate_limit_per_minute' | 'api_timeout_ms'
   | 'email_api_key' | 'email_sender_email' | 'email_sender_name'

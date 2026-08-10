@@ -79,24 +79,15 @@ const SETTINGS: AdminSystemSettings = {
   aiConfiguration: { enableAiChat: true, aiSystemPrompt: 'You are a mental health support assistant for Ears for You.' },
 }
 
-// "Reset to default" buttons render in the same fixed order as the fields themselves - API config
-// x4, email key, email x2, OTP length/expiry/attempts/channel, security x6, AI x2. Named indices
-// avoid re-deriving this each time a test needs a specific field's button.
-const RESET_INDEX = {
-  apiBaseUrl: 0,
-  apiVersion: 1,
-  emailApiKey: 4,
-  senderName: 6,
-  otpLength: 7,
-  jwtExpiryMinutes: 11,
-  jwtRefreshExpiryDays: 12,
-  mfaEnabled: 15,
-  ipWhitelistEnabled: 16,
-  aiSystemPrompt: 18,
+// SETTINGS.emailConfiguration without its apiKey field - the payload shape Save should send
+// whenever the admin never typed a new key (see the "API key field" describe block below).
+const EMAIL_CONFIG_WITHOUT_KEY = {
+  senderEmail: SETTINGS.emailConfiguration.senderEmail,
+  senderName: SETTINGS.emailConfiguration.senderName,
 }
 
 let invalidateQueries: ReturnType<typeof vi.fn>
-let getQueryData: ReturnType<typeof vi.fn>
+let fetchQuery: ReturnType<typeof vi.fn>
 
 describe('AdminSettingsPage', () => {
   beforeEach(() => {
@@ -105,8 +96,8 @@ describe('AdminSettingsPage', () => {
     useQueryClientMock.mockReset()
     useMutationMock.mockImplementation(useFakeMutation)
     invalidateQueries = vi.fn().mockResolvedValue(undefined)
-    getQueryData = vi.fn().mockReturnValue(undefined)
-    useQueryClientMock.mockReturnValue({ invalidateQueries, getQueryData })
+    fetchQuery = vi.fn().mockResolvedValue(undefined)
+    useQueryClientMock.mockReturnValue({ invalidateQueries, fetchQuery })
     vi.restoreAllMocks()
   })
 
@@ -117,7 +108,7 @@ describe('AdminSettingsPage', () => {
     expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0)
   })
 
-  it('renders an ErrorState with a working retry when the settings query errors', async () => {
+  it('renders an ErrorState with a working retry when the settings query errors and there is no prior data', async () => {
     const refetch = vi.fn()
     mockQueries({ isError: true, error: new ApiError(500, 'The server had a problem. Try again.'), refetch })
     const user = userEvent.setup()
@@ -126,6 +117,16 @@ describe('AdminSettingsPage', () => {
     expect(alert).toHaveTextContent('The server had a problem. Try again.')
     await user.click(screen.getByRole('button', { name: /try again/i }))
     expect(refetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps rendering the form (not the full-page error state) when a background refetch errors but earlier data is still there', () => {
+    // Simulates react-query flipping isError to true after a refetch failure that follows a
+    // successful mutation - the form must not unmount and discard any unsaved edits just because
+    // the query object also carries an error alongside its still-valid data.
+    mockQueries({ data: SETTINGS, isError: true, error: new ApiError(500, 'The server had a problem. Try again.') })
+    render(<AdminSettingsPage />)
+    expect(screen.getByText('API Configuration')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /try again/i })).not.toBeInTheDocument()
   })
 
   it('renders all five sections with correct values on success', () => {
@@ -166,8 +167,67 @@ describe('AdminSettingsPage', () => {
     expect(screen.getByLabelText('System prompt')).toHaveValue('You are a mental health support assistant for Ears for You.')
   })
 
+  it('gives every "Reset to default" button a distinct accessible name identifying its field', () => {
+    mockQueries({ data: SETTINGS })
+    render(<AdminSettingsPage />)
+
+    const resetButtons = screen.getAllByRole('button', { name: /^Reset .+ to default$/ })
+    expect(resetButtons).toHaveLength(19)
+    const names = resetButtons.map(b => b.getAttribute('aria-label'))
+    expect(new Set(names).size).toBe(19)
+    // All 19 still show the same visible label text, only their accessible name differs.
+    resetButtons.forEach(b => expect(b).toHaveTextContent('Reset to default'))
+  })
+
+  describe('Numeric field validation', () => {
+    it('disables Save and shows an inline error when a numeric field is cleared, instead of silently writing 0', async () => {
+      mockQueries({ data: SETTINGS })
+      const user = userEvent.setup()
+      render(<AdminSettingsPage />)
+
+      const sessionTimeout = screen.getByLabelText('Session timeout (minutes)')
+      await user.clear(sessionTimeout)
+
+      expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled()
+      expect(screen.getByText('Enter a whole number of at least 1.')).toBeInTheDocument()
+    })
+
+    it('rejects 0 the same way as an empty field', async () => {
+      mockQueries({ data: SETTINGS })
+      const user = userEvent.setup()
+      render(<AdminSettingsPage />)
+
+      const jwtExpiry = screen.getByLabelText('JWT expiry (minutes)')
+      await user.clear(jwtExpiry)
+      await user.type(jwtExpiry, '0')
+
+      expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled()
+    })
+
+    it('re-enables Save and sends the corrected numeric value once a cleared field is fixed', async () => {
+      vi.spyOn(endpoints, 'updateAdminSettings').mockResolvedValue({ message: 'ok' })
+      mockQueries({ data: SETTINGS })
+      const user = userEvent.setup()
+      render(<AdminSettingsPage />)
+
+      const otpLength = screen.getByLabelText('OTP length')
+      await user.clear(otpLength)
+      expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled()
+
+      await user.type(otpLength, '8')
+      expect(screen.getByRole('button', { name: 'Save changes' })).not.toBeDisabled()
+
+      await user.click(screen.getByRole('button', { name: 'Save changes' }))
+      expect(endpoints.updateAdminSettings).toHaveBeenCalledWith({
+        ...SETTINGS,
+        emailConfiguration: EMAIL_CONFIG_WITHOUT_KEY,
+        otpConfiguration: { ...SETTINGS.otpConfiguration, otpLength: 8 },
+      })
+    })
+  })
+
   describe('Save changes', () => {
-    it('submits the full current form state via updateAdminSettings, including an edited field', async () => {
+    it('submits the full current form state via updateAdminSettings, including an edited field, and omits apiKey', async () => {
       vi.spyOn(endpoints, 'updateAdminSettings').mockResolvedValue({ message: 'ok' })
       mockQueries({ data: SETTINGS })
       const user = userEvent.setup()
@@ -181,7 +241,7 @@ describe('AdminSettingsPage', () => {
 
       expect(endpoints.updateAdminSettings).toHaveBeenCalledWith({
         ...SETTINGS,
-        emailConfiguration: { ...SETTINGS.emailConfiguration, senderName: 'New Sender Name' },
+        emailConfiguration: { ...EMAIL_CONFIG_WITHOUT_KEY, senderName: 'New Sender Name' },
       })
     })
 
@@ -204,7 +264,8 @@ describe('AdminSettingsPage', () => {
     it('treats an empty API key draft as unchanged, never sending a literal empty string', async () => {
       // Guards against a genuinely destructive accidental wipe: the backend's masking guard only
       // blocks values containing an 8+ run of '*', so an empty string is NOT caught by it and
-      // would really overwrite the stored key if sent as-is.
+      // would really overwrite the stored key if sent as-is - which is exactly why the field must
+      // be omitted from the payload entirely rather than resent as ''.
       vi.spyOn(endpoints, 'updateAdminSettings').mockResolvedValue({ message: 'ok' })
       mockQueries({ data: SETTINGS })
       const user = userEvent.setup()
@@ -214,7 +275,55 @@ describe('AdminSettingsPage', () => {
       expect(screen.getByLabelText('New API key')).toHaveValue('')
       await user.click(screen.getByRole('button', { name: 'Save changes' }))
 
-      expect(endpoints.updateAdminSettings).toHaveBeenCalledWith(SETTINGS)
+      expect(endpoints.updateAdminSettings).toHaveBeenCalledWith({ ...SETTINGS, emailConfiguration: EMAIL_CONFIG_WITHOUT_KEY })
+    })
+
+    it('treats a whitespace-only API key draft as blank, also omitting apiKey from the payload', async () => {
+      vi.spyOn(endpoints, 'updateAdminSettings').mockResolvedValue({ message: 'ok' })
+      mockQueries({ data: SETTINGS })
+      const user = userEvent.setup()
+      render(<AdminSettingsPage />)
+
+      await user.click(screen.getByRole('button', { name: 'Change API key' }))
+      await user.type(screen.getByLabelText('New API key'), '   ')
+      await user.click(screen.getByRole('button', { name: 'Save changes' }))
+
+      expect(endpoints.updateAdminSettings).toHaveBeenCalledWith({ ...SETTINGS, emailConfiguration: EMAIL_CONFIG_WITHOUT_KEY })
+    })
+
+    it('invalidates the audit log query when Save succeeds, so the Users page audit panel reflects the change', async () => {
+      vi.spyOn(endpoints, 'updateAdminSettings').mockResolvedValue({ message: 'ok' })
+      fetchQuery.mockResolvedValue(SETTINGS)
+      mockQueries({ data: SETTINGS })
+      const user = userEvent.setup()
+      render(<AdminSettingsPage />)
+
+      await user.click(screen.getByRole('button', { name: 'Save changes' }))
+
+      await vi.waitFor(() => {
+        expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: adminQk.auditLogs })
+      })
+    })
+
+    it('leaves the form as-is, without crashing, when the post-save refetch fails', async () => {
+      vi.spyOn(endpoints, 'updateAdminSettings').mockResolvedValue({ message: 'ok' })
+      fetchQuery.mockRejectedValue(new ApiError(500, 'The server had a problem. Try again.'))
+      mockQueries({ data: SETTINGS })
+      const user = userEvent.setup()
+      render(<AdminSettingsPage />)
+
+      const senderName = screen.getByLabelText('Sender name')
+      await user.clear(senderName)
+      await user.type(senderName, 'Still Editing')
+
+      await user.click(screen.getByRole('button', { name: 'Save changes' }))
+
+      await vi.waitFor(() => {
+        expect(endpoints.updateAdminSettings).toHaveBeenCalled()
+      })
+      // The PATCH itself succeeded, but the follow-up GET failed - the in-progress edit must
+      // survive rather than silently reverting to the pre-save value.
+      expect(screen.getByLabelText('Sender name')).toHaveValue('Still Editing')
     })
   })
 
@@ -225,8 +334,7 @@ describe('AdminSettingsPage', () => {
       const user = userEvent.setup()
       render(<AdminSettingsPage />)
 
-      const resetButtons = screen.getAllByRole('button', { name: 'Reset to default' })
-      await user.click(resetButtons[RESET_INDEX.otpLength])
+      await user.click(screen.getByRole('button', { name: 'Reset OTP length to default' }))
 
       expect(endpoints.resetAdminSetting).toHaveBeenCalledWith('otp_length')
     })
@@ -242,7 +350,7 @@ describe('AdminSettingsPage', () => {
         apiConfiguration: { ...SETTINGS.apiConfiguration, baseUrl: 'https://reset-default.example.com' },
         emailConfiguration: { ...SETTINGS.emailConfiguration, senderName: 'Some Other Server Value' },
       }
-      getQueryData.mockReturnValue(fresh)
+      fetchQuery.mockResolvedValue(fresh)
       mockQueries({ data: SETTINGS })
       const user = userEvent.setup()
       render(<AdminSettingsPage />)
@@ -252,8 +360,7 @@ describe('AdminSettingsPage', () => {
       await user.clear(senderName)
       await user.type(senderName, 'My Unsaved Edit')
 
-      const resetButtons = screen.getAllByRole('button', { name: 'Reset to default' })
-      await user.click(resetButtons[RESET_INDEX.apiBaseUrl])
+      await user.click(screen.getByRole('button', { name: 'Reset Base URL to default' }))
 
       await vi.waitFor(() => {
         expect(screen.getByLabelText('Base URL')).toHaveValue('https://reset-default.example.com')
@@ -266,16 +373,15 @@ describe('AdminSettingsPage', () => {
       vi.spyOn(endpoints, 'resetAdminSetting')
         .mockRejectedValueOnce(new ApiError(500, 'The server had a problem. Try again.'))
         .mockResolvedValueOnce({ message: 'ok' })
-      getQueryData.mockReturnValue(SETTINGS)
+      fetchQuery.mockResolvedValue(SETTINGS)
       mockQueries({ data: SETTINGS })
       const user = userEvent.setup()
       render(<AdminSettingsPage />)
 
-      const resetButtons = screen.getAllByRole('button', { name: 'Reset to default' })
-      await user.click(resetButtons[RESET_INDEX.apiBaseUrl])
+      await user.click(screen.getByRole('button', { name: 'Reset Base URL to default' }))
       expect(await screen.findByRole('alert')).toHaveTextContent('The server had a problem. Try again.')
 
-      await user.click(resetButtons[RESET_INDEX.apiVersion])
+      await user.click(screen.getByRole('button', { name: 'Reset API version to default' }))
       await vi.waitFor(() => {
         expect(endpoints.resetAdminSetting).toHaveBeenCalledWith('api_version')
       })
@@ -290,13 +396,12 @@ describe('AdminSettingsPage', () => {
         ...SETTINGS,
         securitySettings: { ...SETTINGS.securitySettings, jwtExpiryMinutes: 999, refreshTokenExpiryDays: 111 },
       }
-      getQueryData.mockReturnValue(fresh)
+      fetchQuery.mockResolvedValue(fresh)
       mockQueries({ data: SETTINGS })
       const user = userEvent.setup()
       render(<AdminSettingsPage />)
 
-      const resetButtons = screen.getAllByRole('button', { name: 'Reset to default' })
-      await user.click(resetButtons[RESET_INDEX.jwtExpiryMinutes])
+      await user.click(screen.getByRole('button', { name: 'Reset JWT expiry (minutes) to default' }))
 
       expect(endpoints.resetAdminSetting).toHaveBeenCalledWith('jwt_expiry_minutes')
       await vi.waitFor(() => {
@@ -312,13 +417,12 @@ describe('AdminSettingsPage', () => {
         ...SETTINGS,
         securitySettings: { ...SETTINGS.securitySettings, mfaEnabled: false, ipWhitelistEnabled: true },
       }
-      getQueryData.mockReturnValue(fresh)
+      fetchQuery.mockResolvedValue(fresh)
       mockQueries({ data: SETTINGS })
       const user = userEvent.setup()
       render(<AdminSettingsPage />)
 
-      const resetButtons = screen.getAllByRole('button', { name: 'Reset to default' })
-      await user.click(resetButtons[RESET_INDEX.mfaEnabled])
+      await user.click(screen.getByRole('button', { name: 'Reset Multi-factor authentication to default' }))
 
       expect(endpoints.resetAdminSetting).toHaveBeenCalledWith('security_mfa_enabled')
       await vi.waitFor(() => {
@@ -334,7 +438,7 @@ describe('AdminSettingsPage', () => {
         ...SETTINGS,
         emailConfiguration: { ...SETTINGS.emailConfiguration, apiKey: 'sk-y****************9z1c' },
       }
-      getQueryData.mockReturnValue(fresh)
+      fetchQuery.mockResolvedValue(fresh)
       mockQueries({ data: SETTINGS })
       const user = userEvent.setup()
       render(<AdminSettingsPage />)
@@ -342,13 +446,41 @@ describe('AdminSettingsPage', () => {
       await user.click(screen.getByRole('button', { name: 'Change API key' }))
       await user.type(screen.getByLabelText('New API key'), 'sk-typed-but-not-saved')
 
-      const resetButtons = screen.getAllByRole('button', { name: 'Reset to default' })
-      await user.click(resetButtons[RESET_INDEX.emailApiKey])
+      await user.click(screen.getByRole('button', { name: 'Reset API key to default' }))
 
       await vi.waitFor(() => {
         expect(screen.getByText('sk-y****************9z1c')).toBeInTheDocument()
       })
       expect(screen.queryByLabelText('New API key')).not.toBeInTheDocument()
+    })
+
+    it('invalidates the audit log query when a reset succeeds', async () => {
+      vi.spyOn(endpoints, 'resetAdminSetting').mockResolvedValue({ message: 'ok' })
+      fetchQuery.mockResolvedValue(SETTINGS)
+      mockQueries({ data: SETTINGS })
+      const user = userEvent.setup()
+      render(<AdminSettingsPage />)
+
+      await user.click(screen.getByRole('button', { name: 'Reset OTP length to default' }))
+
+      await vi.waitFor(() => {
+        expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: adminQk.auditLogs })
+      })
+    })
+
+    it('leaves the form untouched when a reset\'s follow-up refetch fails', async () => {
+      vi.spyOn(endpoints, 'resetAdminSetting').mockResolvedValue({ message: 'ok' })
+      fetchQuery.mockRejectedValue(new ApiError(500, 'The server had a problem. Try again.'))
+      mockQueries({ data: SETTINGS })
+      const user = userEvent.setup()
+      render(<AdminSettingsPage />)
+
+      await user.click(screen.getByRole('button', { name: 'Reset Base URL to default' }))
+
+      await vi.waitFor(() => {
+        expect(endpoints.resetAdminSetting).toHaveBeenCalledWith('api_base_url')
+      })
+      expect(screen.getByLabelText('Base URL')).toHaveValue(SETTINGS.apiConfiguration.baseUrl)
     })
   })
 
@@ -396,7 +528,7 @@ describe('AdminSettingsPage', () => {
       })
     })
 
-    it('resends the original masked string unmodified when "Change API key" was never clicked', async () => {
+    it('omits apiKey entirely from the payload when "Change API key" was never clicked', async () => {
       vi.spyOn(endpoints, 'updateAdminSettings').mockResolvedValue({ message: 'ok' })
       mockQueries({ data: SETTINGS })
       const user = userEvent.setup()
@@ -404,7 +536,7 @@ describe('AdminSettingsPage', () => {
 
       await user.click(screen.getByRole('button', { name: 'Save changes' }))
 
-      expect(endpoints.updateAdminSettings).toHaveBeenCalledWith(SETTINGS)
+      expect(endpoints.updateAdminSettings).toHaveBeenCalledWith({ ...SETTINGS, emailConfiguration: EMAIL_CONFIG_WITHOUT_KEY })
     })
   })
 })
