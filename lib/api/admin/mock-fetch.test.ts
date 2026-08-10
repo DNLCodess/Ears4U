@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { adminMockFetch } from './mock-fetch'
+import type { AdminSystemSettings } from './types'
 
 describe('adminMockFetch', () => {
   it('returns an access token for admin login', async () => {
@@ -162,6 +163,115 @@ describe('adminMockFetch', () => {
     it('does not match the id-route regex when there is an extra trailing path segment', async () => {
       await expect(adminMockFetch('/api/v1/admins/resources/1/extra-segment', { method: 'PUT', body: {} })).rejects.toThrow(/no mock route/)
       await expect(adminMockFetch('/api/v1/admins/resources/1/extra-segment', { method: 'DELETE' })).rejects.toThrow(/no mock route/)
+    })
+  })
+
+  describe('settings', () => {
+    it('PATCH /api/v1/admins/settings updates the mock store, reflected on a subsequent GET', async () => {
+      const patchBody: AdminSystemSettings = {
+        apiConfiguration: { baseUrl: 'https://staging.earsfor.you', apiVersion: 'v2', rateLimitPerMinute: 240, timeoutMs: 8000 },
+        emailConfiguration: { apiKey: 'sk-freshkey-abcdef', senderEmail: 'ops@earsfor.you', senderName: 'Ears For You Ops' },
+        otpConfiguration: { otpLength: 8, otpExpiryMinutes: 15, maxAttempts: 5, deliveryChannel: 'BOTH' },
+        securitySettings: { jwtExpiryMinutes: 45, refreshTokenExpiryDays: 14, maxLoginAttempts: 8, sessionTimeoutMinutes: 20, mfaEnabled: false, ipWhitelistEnabled: true },
+        aiConfiguration: { enableAiChat: false, aiSystemPrompt: 'Custom staging prompt.' },
+      }
+      const patchResult = await adminMockFetch<{ message: string }>('/api/v1/admins/settings', { method: 'PATCH', body: patchBody })
+      expect(patchResult.message).toBe('System settings updated successfully. Changes are now live.')
+
+      const after = await adminMockFetch<AdminSystemSettings>('/api/v1/admins/settings')
+      expect(after.apiConfiguration).toEqual(patchBody.apiConfiguration)
+      expect(after.emailConfiguration).toEqual(patchBody.emailConfiguration)
+      expect(after.otpConfiguration).toEqual(patchBody.otpConfiguration)
+      expect(after.securitySettings).toEqual(patchBody.securitySettings)
+      expect(after.aiConfiguration).toEqual(patchBody.aiConfiguration)
+    })
+
+    it('masking guard: a PATCH with the masked apiKey (8+ consecutive *) does not overwrite the stored key, but a genuinely new key does', async () => {
+      const baseline: AdminSystemSettings = {
+        apiConfiguration: { baseUrl: 'https://api.example.com', apiVersion: 'v1', rateLimitPerMinute: 120, timeoutMs: 5000 },
+        emailConfiguration: { apiKey: 'sk-realbaselinekey', senderEmail: 'ops@earsfor.you', senderName: 'Ears For You Ops' },
+        otpConfiguration: { otpLength: 6, otpExpiryMinutes: 10, maxAttempts: 3, deliveryChannel: 'EMAIL' },
+        securitySettings: { jwtExpiryMinutes: 60, refreshTokenExpiryDays: 7, maxLoginAttempts: 5, sessionTimeoutMinutes: 30, mfaEnabled: true, ipWhitelistEnabled: false },
+        aiConfiguration: { enableAiChat: true, aiSystemPrompt: 'Baseline prompt.' },
+      }
+      await adminMockFetch('/api/v1/admins/settings', { method: 'PATCH', body: baseline })
+
+      // Round-trip the masked value (16 consecutive '*', the exact shape GET renders), the way a
+      // naive "resend whatever GET returned" flow would - must be a safe no-op on the real key.
+      const maskedRoundTrip: AdminSystemSettings = {
+        ...baseline,
+        emailConfiguration: { ...baseline.emailConfiguration, apiKey: 'sk-r' + '*'.repeat(16) + 'key' },
+      }
+      await adminMockFetch('/api/v1/admins/settings', { method: 'PATCH', body: maskedRoundTrip })
+      const afterMasked = await adminMockFetch<AdminSystemSettings>('/api/v1/admins/settings')
+      expect(afterMasked.emailConfiguration.apiKey).toBe('sk-realbaselinekey')
+
+      // A genuinely new (unmasked) key must overwrite the stored value.
+      const withNewKey: AdminSystemSettings = {
+        ...baseline,
+        emailConfiguration: { ...baseline.emailConfiguration, apiKey: 'sk-brandnewrealkey' },
+      }
+      await adminMockFetch('/api/v1/admins/settings', { method: 'PATCH', body: withNewKey })
+      const afterNew = await adminMockFetch<AdminSystemSettings>('/api/v1/admins/settings')
+      expect(afterNew.emailConfiguration.apiKey).toBe('sk-brandnewrealkey')
+    })
+
+    it('DELETE /api/v1/admins/settings/{key} resets exactly that field to its documented default, across sections', async () => {
+      const custom: AdminSystemSettings = {
+        apiConfiguration: { baseUrl: 'https://custom.example.com', apiVersion: 'v9', rateLimitPerMinute: 500, timeoutMs: 12000 },
+        emailConfiguration: { apiKey: 'sk-customkey', senderEmail: 'custom@example.com', senderName: 'Custom Sender' },
+        otpConfiguration: { otpLength: 10, otpExpiryMinutes: 30, maxAttempts: 9, deliveryChannel: 'SMS' },
+        securitySettings: { jwtExpiryMinutes: 999, refreshTokenExpiryDays: 888, maxLoginAttempts: 77, sessionTimeoutMinutes: 66, mfaEnabled: false, ipWhitelistEnabled: true },
+        aiConfiguration: { enableAiChat: false, aiSystemPrompt: 'Custom prompt.' },
+      }
+      await adminMockFetch('/api/v1/admins/settings', { method: 'PATCH', body: custom })
+
+      const rateLimitReset = await adminMockFetch<{ message: string }>(
+        '/api/v1/admins/settings/api_rate_limit_per_minute', { method: 'DELETE' },
+      )
+      expect(rateLimitReset.message).toBe("Setting 'api_rate_limit_per_minute' has been reset to system default.")
+      await adminMockFetch('/api/v1/admins/settings/otp_delivery_channel', { method: 'DELETE' })
+      // Adjacent-name-pair check: resetting jwt_expiry_minutes must not affect refreshTokenExpiryDays,
+      // which lives in the same section but is reset by the differently-named jwt_refresh_expiry_days key.
+      await adminMockFetch('/api/v1/admins/settings/jwt_expiry_minutes', { method: 'DELETE' })
+
+      const after = await adminMockFetch<AdminSystemSettings>('/api/v1/admins/settings')
+      expect(after.apiConfiguration.rateLimitPerMinute).toBe(120)
+      expect(after.otpConfiguration.deliveryChannel).toBe('EMAIL')
+      expect(after.securitySettings.jwtExpiryMinutes).toBe(60)
+      // Sibling field, reset only by its own differently-named key, must still hold the custom value.
+      expect(after.securitySettings.refreshTokenExpiryDays).toBe(888)
+      // Fields not yet reset remain untouched, confirming reset is scoped to exactly the requested key.
+      expect(after.apiConfiguration.baseUrl).toBe('https://custom.example.com')
+      expect(after.aiConfiguration.aiSystemPrompt).toBe('Custom prompt.')
+
+      // Now reset the sibling too, and confirm it independently reaches its own (different) default.
+      await adminMockFetch('/api/v1/admins/settings/jwt_refresh_expiry_days', { method: 'DELETE' })
+      const afterSibling = await adminMockFetch<AdminSystemSettings>('/api/v1/admins/settings')
+      expect(afterSibling.securitySettings.refreshTokenExpiryDays).toBe(7)
+      expect(afterSibling.securitySettings.jwtExpiryMinutes).toBe(60)
+    })
+
+    it('the {key} DELETE regex does not match the id-less settings collection path', async () => {
+      await expect(adminMockFetch('/api/v1/admins/settings', { method: 'DELETE' })).rejects.toThrow(/no mock route/)
+    })
+
+    it('throws for a key segment outside the lowercase/underscore character class', async () => {
+      await expect(adminMockFetch('/api/v1/admins/settings/API_BASE_URL', { method: 'DELETE' })).rejects.toThrow(/no mock route/)
+      await expect(adminMockFetch('/api/v1/admins/settings/api-base-url', { method: 'DELETE' })).rejects.toThrow(/no mock route/)
+    })
+
+    it('throws for an extra trailing path segment after the key', async () => {
+      await expect(adminMockFetch('/api/v1/admins/settings/api_base_url/extra', { method: 'DELETE' })).rejects.toThrow(/no mock route/)
+    })
+
+    it('a key that matches the path shape but is not a real reset key throws instead of silently no-opping', async () => {
+      // Traces the actual fallthrough: the regex matches (lowercase + underscores), routing into
+      // adminMockStore.resetSetting, but SETTING_RESET_DEFAULTS has no entry for this key, so
+      // calling it as a function throws a TypeError rather than resolving or hitting the generic
+      // "no mock route" error - a real bug here would surface loudly, not silently no-op.
+      await expect(adminMockFetch('/api/v1/admins/settings/totally_unknown_key', { method: 'DELETE' }))
+        .rejects.toThrow(/is not a function/)
     })
   })
 })
