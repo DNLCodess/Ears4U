@@ -142,7 +142,7 @@ export default function AdminBroadcastsPage() {
         </div>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-[380px_1fr] lg:items-start">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[380px_1fr] lg:items-start">
         <ComposeForm />
 
         <div>
