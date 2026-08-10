@@ -42,3 +42,6 @@ next-env.d.ts
 
 # visual brainstorming sessions
 .superpowers/
+
+# reference-only backend source, not part of this frontend repo
+/backend/
