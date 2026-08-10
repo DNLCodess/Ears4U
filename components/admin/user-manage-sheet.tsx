@@ -6,17 +6,13 @@ import {
   suspendAdminUser, reactivateAdminUser, changeAdminUserEmail, generateAdminUserOtp,
 } from '@/lib/api/admin/endpoints'
 import { adminQk } from '@/lib/query/admin-keys'
-import { ApiError } from '@/lib/api/errors'
+import { errorMessage } from '@/lib/api/errors'
 import type { AdminUserSummary } from '@/lib/api/admin/types'
 import { Sheet } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
 import { Field } from '@/components/ui/field'
 
 const EMAIL_RE = /.+@.+\..+/
-
-function errorMessage(err: unknown): string {
-  return err instanceof ApiError ? err.friendly : 'Something went wrong. Try again.'
-}
 
 type OtpKind = 'registration' | 'password' | 'email' | 'password-change'
 

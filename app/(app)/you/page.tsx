@@ -9,7 +9,7 @@ import {
   resendPasswordChangeOtp, updateNotificationSettings, updateProfile,
 } from '@/lib/api/endpoints'
 import { qk } from '@/lib/query/keys'
-import { ApiError } from '@/lib/api/errors'
+import { errorMessage } from '@/lib/api/errors'
 import { passwordIssue } from '@/lib/password'
 import type { NotificationSettings, UpdateProfilePayload, UserProfile } from '@/lib/api/types'
 import { Lifeline } from '@/components/lifeline'
@@ -54,10 +54,6 @@ function SelectField({ label, value, onChange, options }:
       </select>
     </label>
   )
-}
-
-function errorMessage(err: unknown): string {
-  return err instanceof ApiError ? err.friendly : 'Something went wrong. Try again.'
 }
 
 // ---------------------------------------------------------------------------

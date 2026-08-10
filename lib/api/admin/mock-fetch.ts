@@ -1,4 +1,5 @@
 import { adminMockStore } from './mock-store'
+import { ApiError, friendlyFor } from '../errors'
 import type { UpdateAdminProfilePayload, AdminEmergencyResourceInput } from './types'
 
 const DELAY_MS = 350
@@ -85,6 +86,7 @@ export async function adminMockFetch<T>(path: string, opts: Opts = {}): Promise<
     const id = Number(resourceIdMatch[1])
     const body = opts.body as AdminEmergencyResourceInput
     const updated = adminMockStore.updateResource(id, body)
+    if (!updated) throw new ApiError(404, friendlyFor(404))
     return delay(updated as T)
   }
   if (resourceIdMatch && method === 'DELETE') {

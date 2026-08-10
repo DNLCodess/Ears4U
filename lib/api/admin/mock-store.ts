@@ -179,11 +179,11 @@ export const adminMockStore = {
       totalWebsites: emergencyResources.filter(r => r.resourceType === 'WEBSITE').length,
       totalClinics: emergencyResources.filter(r => r.resourceType === 'CLINIC').length,
       activeCountriesCount: new Set(emergencyResources.filter(r => r.active).map(r => r.country)).size,
-      resources: emergencyResources,
+      resources: [...emergencyResources],
     }
   },
   addResource(input: AdminEmergencyResourceInput): AdminEmergencyResource {
-    const resource: AdminEmergencyResource = { id: nextResourceId++, ...input }
+    const resource: AdminEmergencyResource = { ...input, id: nextResourceId++ }
     emergencyResources.push(resource)
     return resource
   },

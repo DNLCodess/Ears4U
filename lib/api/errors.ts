@@ -31,3 +31,7 @@ export class ApiError extends Error {
 export function friendlyFor(status: number, bodyMessage?: string): string {
   return bodyMessage || STATUS_MESSAGES[status] || "Something went wrong. Try again."
 }
+
+export function errorMessage(err: unknown): string {
+  return err instanceof ApiError ? err.friendly : "Something went wrong. Try again."
+}

@@ -37,7 +37,7 @@ describe('AdminEmergencyResourceSheet', () => {
     expect(screen.getByLabelText(/name/i)).toHaveValue('')
     expect(screen.getByLabelText(/country/i)).toHaveValue('')
     expect(screen.getByLabelText(/contact info/i)).toHaveValue('')
-    expect(screen.getByRole('radio', { name: /hotline/i })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('button', { name: /hotline/i })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('switch', { name: /active/i })).toHaveAttribute('aria-checked', 'true')
   })
 
@@ -48,7 +48,7 @@ describe('AdminEmergencyResourceSheet', () => {
 
     await user.type(screen.getByLabelText(/name/i), 'Youth Support Line')
     await user.type(screen.getByLabelText(/country/i), 'Kenya')
-    await user.click(screen.getByRole('radio', { name: /website/i }))
+    await user.click(screen.getByRole('button', { name: /website/i }))
     await user.type(screen.getByLabelText(/contact info/i), 'https://youthsupport.example')
     await user.click(screen.getByRole('switch', { name: /active/i }))
     await user.click(screen.getByRole('button', { name: /add resource/i }))
@@ -86,7 +86,7 @@ describe('AdminEmergencyResourceSheet', () => {
     expect(screen.getByLabelText(/name/i)).toHaveValue(RESOURCE.name)
     expect(screen.getByLabelText(/country/i)).toHaveValue(RESOURCE.country)
     expect(screen.getByLabelText(/contact info/i)).toHaveValue(RESOURCE.contactInfo)
-    expect(screen.getByRole('radio', { name: /hotline/i })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('button', { name: /hotline/i })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('switch', { name: /active/i })).toHaveAttribute('aria-checked', 'true')
   })
 

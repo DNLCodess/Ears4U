@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { createAdminEmergencyResource, updateAdminEmergencyResource } from '@/lib/api/admin/endpoints'
 import { adminQk } from '@/lib/query/admin-keys'
-import { ApiError } from '@/lib/api/errors'
+import { errorMessage } from '@/lib/api/errors'
 import type { AdminEmergencyResource, AdminEmergencyResourceInput } from '@/lib/api/admin/types'
 import { Sheet } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
@@ -16,10 +16,6 @@ const TYPE_OPTIONS: { value: AdminEmergencyResourceInput['resourceType']; label:
   { value: 'WEBSITE', label: 'Website' },
   { value: 'CLINIC', label: 'Clinic' },
 ]
-
-function errorMessage(err: unknown): string {
-  return err instanceof ApiError ? err.friendly : 'Something went wrong. Try again.'
-}
 
 const EMPTY_FORM: AdminEmergencyResourceInput = {
   name: '', country: '', resourceType: 'HOTLINE', contactInfo: '', active: true,
@@ -60,10 +56,17 @@ function ResourceForm({ resource, onClose }: {
   const [form, setForm] = useState<AdminEmergencyResourceInput>(() => toInput(resource))
 
   const mutation = useMutation({
-    mutationFn: () =>
-      resource
-        ? updateAdminEmergencyResource(resource.id, form)
-        : createAdminEmergencyResource(form),
+    mutationFn: () => {
+      const payload: AdminEmergencyResourceInput = {
+        ...form,
+        name: form.name.trim(),
+        country: form.country.trim(),
+        contactInfo: form.contactInfo.trim(),
+      }
+      return resource
+        ? updateAdminEmergencyResource(resource.id, payload)
+        : createAdminEmergencyResource(payload)
+    },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: adminQk.emergencyDashboard })
       onClose()
@@ -79,19 +82,18 @@ function ResourceForm({ resource, onClose }: {
     >
       {mutation.isError ? <p role="alert" className="text-sm text-clay">{errorMessage(mutation.error)}</p> : null}
       <Field label="Name" required value={form.name}
-        onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+        onChange={e => { setForm(f => ({ ...f, name: e.target.value })); mutation.reset() }} />
       <Field label="Country" required value={form.country}
-        onChange={e => setForm(f => ({ ...f, country: e.target.value }))} />
+        onChange={e => { setForm(f => ({ ...f, country: e.target.value })); mutation.reset() }} />
       <div>
-        <p className="mb-2 text-sm font-semibold opacity-70">Type</p>
-        <div role="radiogroup" aria-label="Type" className="flex gap-2">
+        <p id="resource-type-label" className="mb-2 text-sm font-semibold opacity-70">Type</p>
+        <div aria-labelledby="resource-type-label" className="flex gap-2">
           {TYPE_OPTIONS.map(opt => (
             <button
               key={opt.value}
               type="button"
-              role="radio"
-              aria-checked={form.resourceType === opt.value}
-              onClick={() => setForm(f => ({ ...f, resourceType: opt.value }))}
+              aria-pressed={form.resourceType === opt.value}
+              onClick={() => { setForm(f => ({ ...f, resourceType: opt.value })); mutation.reset() }}
               className={`rounded-full px-3 py-1.5 text-sm transition ${
                 form.resourceType === opt.value ? 'bg-fir text-oat' : 'bg-card'
               }`}
@@ -102,13 +104,13 @@ function ResourceForm({ resource, onClose }: {
         </div>
       </div>
       <Field label="Contact info" required value={form.contactInfo}
-        onChange={e => setForm(f => ({ ...f, contactInfo: e.target.value }))} />
+        onChange={e => { setForm(f => ({ ...f, contactInfo: e.target.value })); mutation.reset() }} />
       <div className="flex items-center justify-between gap-4">
         <p className="text-sm font-semibold opacity-70">Active</p>
         <Toggle
           label="Active"
           checked={form.active}
-          onChange={next => setForm(f => ({ ...f, active: next }))}
+          onChange={next => { setForm(f => ({ ...f, active: next })); mutation.reset() }}
         />
       </div>
       <Button type="submit" busy={mutation.isPending} disabled={!valid}>

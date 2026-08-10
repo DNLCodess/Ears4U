@@ -99,4 +99,69 @@ describe('adminMockFetch', () => {
   it('throws for an unmapped path so gaps are loud, not silent', async () => {
     await expect(adminMockFetch('/api/v1/does-not-exist')).rejects.toThrow(/no mock route/)
   })
+
+  describe('emergency resources', () => {
+    it('creates and returns a resource with a generated id on POST /api/v1/admins/resources', async () => {
+      const r = await adminMockFetch<{ id: number; name: string }>('/api/v1/admins/resources', {
+        method: 'POST',
+        body: { name: 'Youth Support Line', country: 'Kenya', resourceType: 'HOTLINE', contactInfo: '0800-000-000', active: true },
+      })
+      expect(r.name).toBe('Youth Support Line')
+      expect(typeof r.id).toBe('number')
+    })
+
+    it('updates and returns the resource on PUT /api/v1/admins/resources/{id} for a real id', async () => {
+      const created = await adminMockFetch<{ id: number }>('/api/v1/admins/resources', {
+        method: 'POST',
+        body: { name: 'Old Name', country: 'Kenya', resourceType: 'HOTLINE', contactInfo: '0800-000-000', active: true },
+      })
+      const updated = await adminMockFetch<{ id: number; name: string }>(`/api/v1/admins/resources/${created.id}`, {
+        method: 'PUT',
+        body: { name: 'New Name', country: 'Kenya', resourceType: 'HOTLINE', contactInfo: '0800-000-000', active: false },
+      })
+      expect(updated.id).toBe(created.id)
+      expect(updated.name).toBe('New Name')
+    })
+
+    it('throws when PUT /api/v1/admins/resources/{id} targets a nonexistent id', async () => {
+      await expect(
+        adminMockFetch('/api/v1/admins/resources/999999', {
+          method: 'PUT',
+          body: { name: 'Ghost', country: 'Kenya', resourceType: 'HOTLINE', contactInfo: '0800-000-000', active: true },
+        }),
+      ).rejects.toThrow()
+    })
+
+    it('removes the resource on DELETE /api/v1/admins/resources/{id}', async () => {
+      const created = await adminMockFetch<{ id: number }>('/api/v1/admins/resources', {
+        method: 'POST',
+        body: { name: 'To Delete', country: 'Kenya', resourceType: 'HOTLINE', contactInfo: '0800-000-000', active: true },
+      })
+      const deleteResult = await adminMockFetch(`/api/v1/admins/resources/${created.id}`, { method: 'DELETE' })
+      expect(deleteResult).toEqual({ message: 'Emergency resource deleted successfully.' })
+
+      // Deleting again (or updating) the now-gone id should throw, confirming it's actually gone.
+      await expect(
+        adminMockFetch(`/api/v1/admins/resources/${created.id}`, {
+          method: 'PUT',
+          body: { name: 'Ghost', country: 'Kenya', resourceType: 'HOTLINE', contactInfo: '0800-000-000', active: true },
+        }),
+      ).rejects.toThrow()
+    })
+
+    it('does not match the id-route regex for the id-less collection path, falling through to the unmapped-path error for PUT/DELETE', async () => {
+      await expect(adminMockFetch('/api/v1/admins/resources', { method: 'PUT', body: {} })).rejects.toThrow(/no mock route/)
+      await expect(adminMockFetch('/api/v1/admins/resources', { method: 'DELETE' })).rejects.toThrow(/no mock route/)
+    })
+
+    it('does not match the id-route regex for a non-numeric id segment', async () => {
+      await expect(adminMockFetch('/api/v1/admins/resources/abc', { method: 'PUT', body: {} })).rejects.toThrow(/no mock route/)
+      await expect(adminMockFetch('/api/v1/admins/resources/abc', { method: 'DELETE' })).rejects.toThrow(/no mock route/)
+    })
+
+    it('does not match the id-route regex when there is an extra trailing path segment', async () => {
+      await expect(adminMockFetch('/api/v1/admins/resources/1/extra-segment', { method: 'PUT', body: {} })).rejects.toThrow(/no mock route/)
+      await expect(adminMockFetch('/api/v1/admins/resources/1/extra-segment', { method: 'DELETE' })).rejects.toThrow(/no mock route/)
+    })
+  })
 })

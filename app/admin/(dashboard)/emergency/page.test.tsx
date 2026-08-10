@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { useState } from 'react'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import AdminEmergencyPage from './page'
@@ -17,6 +18,41 @@ vi.mock('@tanstack/react-query', () => ({
   useQueryClient: () => useQueryClientMock(),
   keepPreviousData: Symbol('keepPreviousData'),
 }))
+
+type MutationOpts = {
+  mutationFn: () => Promise<unknown>
+  onSuccess?: (data: unknown) => unknown
+  onError?: (error: unknown) => unknown
+}
+
+// A small stand-in for react-query's real useMutation: it uses React's own
+// useState internally (this function runs inside the component's render, so
+// calling a real hook here is legal) and actually calls through to the
+// `onSuccess`/`onError` passed to `useMutation`, so page-level tests can
+// exercise dashboard-invalidation-after-delete and the error/busy states
+// instead of only asserting that `mutationFn` was invoked.
+function useFakeMutation(opts: MutationOpts) {
+  const [state, setState] = useState<{ isPending: boolean; isError: boolean; error: unknown }>({
+    isPending: false, isError: false, error: undefined,
+  })
+  return {
+    ...state,
+    mutate: () => {
+      setState({ isPending: true, isError: false, error: undefined })
+      void opts.mutationFn().then(
+        data => {
+          setState({ isPending: false, isError: false, error: undefined })
+          opts.onSuccess?.(data)
+        },
+        error => {
+          setState({ isPending: false, isError: true, error })
+          opts.onError?.(error)
+        },
+      )
+    },
+    reset: () => setState({ isPending: false, isError: false, error: undefined }),
+  }
+}
 
 type QueryState<T> = {
   data?: T
@@ -47,22 +83,16 @@ const DASHBOARD: AdminEmergencyDashboard = {
   ],
 }
 
+let invalidateQueries: ReturnType<typeof vi.fn>
+
 describe('AdminEmergencyPage', () => {
   beforeEach(() => {
     useQueryMock.mockReset()
     useMutationMock.mockReset()
     useQueryClientMock.mockReset()
-    // Mimics real react-query behaviour just enough for these tests: calling `mutate()` invokes
-    // the `mutationFn` passed to `useMutation`, so clicking through the UI actually reaches the
-    // real endpoint function (which tests spy on), without depending on react-query internals.
-    useMutationMock.mockImplementation((opts: { mutationFn: () => unknown }) => ({
-      isPending: false,
-      isError: false,
-      error: undefined,
-      mutate: () => { void opts.mutationFn() },
-      reset: vi.fn(),
-    }))
-    useQueryClientMock.mockReturnValue({ invalidateQueries: vi.fn() })
+    useMutationMock.mockImplementation(useFakeMutation)
+    invalidateQueries = vi.fn().mockResolvedValue(undefined)
+    useQueryClientMock.mockReturnValue({ invalidateQueries })
   })
 
   it('renders skeleton cards and a skeleton list while loading', () => {
@@ -147,13 +177,13 @@ describe('AdminEmergencyPage', () => {
       expect(screen.getByLabelText(/name/i)).toHaveValue('Old Community Line')
       expect(screen.getByLabelText(/country/i)).toHaveValue('Canada')
       expect(screen.getByLabelText(/contact info/i)).toHaveValue('1-800-000-0000')
-      expect(screen.getByRole('radio', { name: /hotline/i })).toHaveAttribute('aria-checked', 'true')
+      expect(screen.getByRole('button', { name: /hotline/i })).toHaveAttribute('aria-pressed', 'true')
       expect(screen.getByRole('switch', { name: /active/i })).toHaveAttribute('aria-checked', 'false')
     })
   })
 
   describe('deleting a resource', () => {
-    it('reveals Confirm/Cancel in place of Delete, and Cancel returns to the Delete label without deleting', async () => {
+    it('reveals Confirm delete/Cancel in place of Delete, labeled per-row, and Cancel returns to the Delete label without deleting', async () => {
       vi.spyOn(endpoints, 'deleteAdminEmergencyResource').mockResolvedValue({ message: 'Emergency resource deleted successfully.' })
       mockQueries({ data: DASHBOARD })
       const user = userEvent.setup()
@@ -162,15 +192,17 @@ describe('AdminEmergencyPage', () => {
       const deleteButtons = screen.getAllByRole('button', { name: 'Delete' })
       await user.click(deleteButtons[2])
 
-      expect(screen.getByRole('button', { name: 'Confirm' })).toBeInTheDocument()
+      const confirmButton = screen.getByRole('button', { name: 'Confirm delete BetterHelp' })
+      expect(confirmButton).toBeInTheDocument()
+      expect(confirmButton).toHaveTextContent('Confirm delete')
       await user.click(screen.getByRole('button', { name: 'Cancel' }))
 
-      expect(screen.queryByRole('button', { name: 'Confirm' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Confirm delete BetterHelp' })).not.toBeInTheDocument()
       expect(screen.getAllByRole('button', { name: 'Delete' })).toHaveLength(4)
       expect(endpoints.deleteAdminEmergencyResource).not.toHaveBeenCalled()
     })
 
-    it('calls deleteAdminEmergencyResource with the clicked row\'s id when Confirm is clicked', async () => {
+    it('calls deleteAdminEmergencyResource with the clicked row\'s id when Confirm delete is clicked', async () => {
       vi.spyOn(endpoints, 'deleteAdminEmergencyResource').mockResolvedValue({ message: 'Emergency resource deleted successfully.' })
       mockQueries({ data: DASHBOARD })
       const user = userEvent.setup()
@@ -179,9 +211,49 @@ describe('AdminEmergencyPage', () => {
       const deleteButtons = screen.getAllByRole('button', { name: 'Delete' })
       // Row index 2 is "BetterHelp" (id 3).
       await user.click(deleteButtons[2])
-      await user.click(screen.getByRole('button', { name: 'Confirm' }))
+      await user.click(screen.getByRole('button', { name: 'Confirm delete BetterHelp' }))
 
       expect(endpoints.deleteAdminEmergencyResource).toHaveBeenCalledWith(3)
+    })
+
+    it('invalidates the emergency dashboard query and closes the confirm row after a successful delete', async () => {
+      vi.spyOn(endpoints, 'deleteAdminEmergencyResource').mockResolvedValue({ message: 'Emergency resource deleted successfully.' })
+      mockQueries({ data: DASHBOARD })
+      const user = userEvent.setup()
+      render(<AdminEmergencyPage />)
+
+      const deleteButtons = screen.getAllByRole('button', { name: 'Delete' })
+      await user.click(deleteButtons[2])
+      await user.click(screen.getByRole('button', { name: 'Confirm delete BetterHelp' }))
+
+      await vi.waitFor(() => {
+        expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: adminQk.emergencyDashboard })
+      })
+      expect(screen.queryByRole('button', { name: 'Confirm delete BetterHelp' })).not.toBeInTheDocument()
+      expect(screen.getAllByRole('button', { name: 'Delete' })).toHaveLength(4)
+    })
+
+    it('shows a busy Confirm delete button while pending, and an error message without invalidating on failure', async () => {
+      let rejectDelete: (err: unknown) => void = () => {}
+      const pending = new Promise<{ message: string }>((_resolve, reject) => { rejectDelete = reject })
+      vi.spyOn(endpoints, 'deleteAdminEmergencyResource').mockReturnValue(pending)
+      mockQueries({ data: DASHBOARD })
+      const user = userEvent.setup()
+      render(<AdminEmergencyPage />)
+
+      const deleteButtons = screen.getAllByRole('button', { name: 'Delete' })
+      await user.click(deleteButtons[2])
+      const confirmButton = screen.getByRole('button', { name: 'Confirm delete BetterHelp' })
+      await user.click(confirmButton)
+
+      expect(confirmButton).toBeDisabled()
+
+      rejectDelete(new ApiError(500, 'The server had a problem. Try again.'))
+
+      expect(await screen.findByRole('alert')).toHaveTextContent('The server had a problem. Try again.')
+      expect(screen.getByRole('button', { name: 'Confirm delete BetterHelp' })).toBeEnabled()
+      expect(screen.getByText('BetterHelp')).toBeInTheDocument()
+      expect(invalidateQueries).not.toHaveBeenCalled()
     })
   })
 })
