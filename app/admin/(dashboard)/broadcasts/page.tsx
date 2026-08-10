@@ -4,7 +4,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getAdminBroadcastHistory, sendAdminBroadcast } from '@/lib/api/admin/endpoints'
 import { adminQk } from '@/lib/query/admin-keys'
 import { errorMessage } from '@/lib/api/errors'
-import { formatSentAt } from '../dashboard/page'
 import type { AdminBroadcastPayload, AdminNotificationDashboardResponse } from '@/lib/api/admin/types'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ErrorState } from '@/components/ui/error-state'
@@ -36,6 +35,16 @@ const SEGMENT_BADGE: Record<string, { label: string; className: string }> = {
 
 function segmentBadge(segment: string): { label: string; className: string } {
   return SEGMENT_BADGE[segment] ?? { label: segment, className: 'bg-fir/10 text-fir' }
+}
+
+// Local copy of Dashboard's own `formatSentAt` (app/admin/(dashboard)/dashboard/page.tsx) - each
+// admin page owns its own small formatter rather than importing one from a sibling route's
+// page.tsx (see e.g. the Users page's own date handling), so this route's bundle never couples to
+// Dashboard's unrelated module (its CSV-export mutation, etc.).
+function formatSentAt(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
 function ComposeForm() {
