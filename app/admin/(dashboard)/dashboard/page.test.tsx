@@ -5,7 +5,7 @@ import { formatSentAt } from './page'
 import AdminDashboardPage from './page'
 import { adminQk } from '@/lib/query/admin-keys'
 import { ApiError } from '@/lib/api/errors'
-import type { AdminDashboardMetrics, AdminBroadcastHistoryItem } from '@/lib/api/admin/types'
+import type { AdminDashboardMetrics, AdminNotificationDashboardResponse } from '@/lib/api/admin/types'
 
 describe('formatSentAt', () => {
   it('formats a valid ISO date as a short month/day string', () => {
@@ -34,7 +34,7 @@ type QueryState<T> = {
 
 function mockQueries(states: {
   dashboard?: QueryState<AdminDashboardMetrics>
-  broadcasts?: QueryState<AdminBroadcastHistoryItem[]>
+  broadcasts?: QueryState<AdminNotificationDashboardResponse>
 }) {
   useQueryMock.mockImplementation((opts: { queryKey: readonly unknown[] }) => {
     const base: QueryState<unknown> = { data: undefined, isLoading: false, isError: false, error: undefined, refetch: vi.fn() }
@@ -62,15 +62,20 @@ const METRICS: AdminDashboardMetrics = {
   aiChats: 96,
 }
 
-const BROADCASTS: AdminBroadcastHistoryItem[] = [
-  {
-    formattedId: 'NTF-0001',
-    title: 'We shipped a new feature',
-    message: 'Details about the new feature we just shipped.',
-    segment: 'ALL_USERS',
-    sentAt: '2026-08-05T14:00:00Z',
-  },
-]
+const BROADCASTS: AdminNotificationDashboardResponse = {
+  totalSent: 1,
+  toAllUsers: 1,
+  reEngagement: 0,
+  notifications: [
+    {
+      formattedId: 'NTF-0001',
+      title: 'We shipped a new feature',
+      message: 'Details about the new feature we just shipped.',
+      segment: 'ALL_USERS',
+      sentAt: '2026-08-05T14:00:00Z',
+    },
+  ],
+}
 
 describe('AdminDashboardPage', () => {
   beforeEach(() => {
@@ -135,7 +140,10 @@ describe('AdminDashboardPage', () => {
   })
 
   it('renders "No broadcasts sent yet." when the broadcast list is empty', () => {
-    mockQueries({ dashboard: { data: METRICS }, broadcasts: { data: [] } })
+    mockQueries({
+      dashboard: { data: METRICS },
+      broadcasts: { data: { totalSent: 0, toAllUsers: 0, reEngagement: 0, notifications: [] } },
+    })
     render(<AdminDashboardPage />)
     expect(screen.getByText('No broadcasts sent yet.')).toBeInTheDocument()
   })

@@ -1,6 +1,6 @@
 import { adminMockStore } from './mock-store'
 import { ApiError, friendlyFor } from '../errors'
-import type { UpdateAdminProfilePayload, AdminEmergencyResourceInput, AdminSystemSettingsUpdate, AdminSettingResetKey } from './types'
+import type { UpdateAdminProfilePayload, AdminEmergencyResourceInput, AdminSystemSettingsUpdate, AdminSettingResetKey, AdminBroadcastPayload } from './types'
 
 const DELAY_MS = 350
 
@@ -97,6 +97,10 @@ export async function adminMockFetch<T>(path: string, opts: Opts = {}): Promise<
 
   if (pathname === '/api/v1/admins/dashboard/notifications' && method === 'GET') {
     return delay(adminMockStore.getBroadcastHistory() as T)
+  }
+  if (pathname === '/api/v1/admins/broadcast' && method === 'POST') {
+    adminMockStore.sendBroadcast(opts.body as AdminBroadcastPayload)
+    return delay({ message: 'Broadcast event successfully queued for delivery.' } as T)
   }
   if (pathname === '/api/v1/admins/anaytics' && method === 'GET') {
     return delay(adminMockStore.getAnalytics() as T)

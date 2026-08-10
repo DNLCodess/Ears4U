@@ -37,6 +37,12 @@ export interface AdminNotificationDashboardResponse {
   reEngagement: number
   notifications: AdminBroadcastHistoryItem[]
 }
+// Backend BroadcastRequest (POST /api/v1/admins/broadcast).
+export interface AdminBroadcastPayload {
+  title: string
+  message: string
+  segment: 'ALL_USERS' | 'RE_ENGAGEMENT' | 'SYSTEM_MAINTENANCE'
+}
 
 // Backend TimeSeriesPoint/MoodPoint/AiUsagePoint (shared shapes used by both DashboardMetricsDTO
 // and AdminAnalyticsResponse).

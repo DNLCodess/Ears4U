@@ -3,7 +3,7 @@ import { setAdminAccessToken, clearAdminAccessToken } from './token'
 import { ADMIN_USERS_PAGE_SIZE } from './types'
 import type {
   AdminProfile, AdminRegisterPayload, UpdateAdminProfilePayload,
-  AdminDashboardMetrics, AdminBroadcastHistoryItem, AdminNotificationDashboardResponse,
+  AdminDashboardMetrics, AdminNotificationDashboardResponse, AdminBroadcastPayload,
   AdminAnalytics, AdminAnalyticsResponse,
   AdminUsersPage, AdminAuditLogItem, AdminEmergencyDashboard,
   AdminEmergencyResource, AdminEmergencyResourceInput,
@@ -111,12 +111,13 @@ export const deleteAdminEmergencyResource = (id: number) =>
   adminApiFetch(`/api/v1/admins/resources/${id}`, { method: 'DELETE' })
 
 // Real endpoint returns a NotificationDashboardResponse wrapper (totalSent/toAllUsers/
-// reEngagement/notifications), not a bare array - unwrap it here so callers keep working with a
-// plain AdminBroadcastHistoryItem[].
-export async function getAdminBroadcastHistory(): Promise<AdminBroadcastHistoryItem[]> {
-  const r = await adminApiFetch<AdminNotificationDashboardResponse>('/api/v1/admins/dashboard/notifications')
-  return r.notifications
-}
+// reEngagement/notifications) - callers that want the summary counts alongside the list now get
+// the whole wrapper, rather than having it unwrapped away at this boundary.
+export const getAdminBroadcastHistory = () =>
+  adminApiFetch<AdminNotificationDashboardResponse>('/api/v1/admins/dashboard/notifications')
+
+export const sendAdminBroadcast = (payload: AdminBroadcastPayload) =>
+  adminApiFetch('/api/v1/admins/broadcast', { method: 'POST', body: payload })
 
 // Path is genuinely misspelled on the backend ("/anaytics", missing the "l") - do not "fix" it,
 // there is no "/analytics" route. Maps the real wire fields onto the { date, value } shape

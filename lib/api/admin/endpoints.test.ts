@@ -163,7 +163,7 @@ describe('admin account credential changes', () => {
 })
 
 import {
-  getAdminDashboard, getAdminEmergencyDashboard, getAdminBroadcastHistory, getAdminAnalytics, downloadAdminDashboardExport,
+  getAdminDashboard, getAdminEmergencyDashboard, getAdminBroadcastHistory, sendAdminBroadcast, getAdminAnalytics, downloadAdminDashboardExport,
   createAdminEmergencyResource, updateAdminEmergencyResource, deleteAdminEmergencyResource,
 } from './endpoints'
 
@@ -204,15 +204,23 @@ describe('admin dashboard and analytics endpoints', () => {
     expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/resources/3', { method: 'DELETE' })
   })
 
-  it('getAdminBroadcastHistory fetches the notifications path and unwraps the notifications array ' +
-    'from the wrapped NotificationDashboardResponse', async () => {
-    vi.spyOn(client, 'adminApiFetch').mockResolvedValue({
+  it('getAdminBroadcastHistory fetches the notifications path and returns the full wrapped ' +
+    'NotificationDashboardResponse, including its summary counts', async () => {
+    const response = {
       totalSent: 2, toAllUsers: 1, reEngagement: 1,
       notifications: [{ formattedId: 'NTF-0001', title: 'Hi', message: 'msg', segment: 'ALL_USERS', sentAt: '2026-08-05T14:00:00Z' }],
-    })
+    }
+    vi.spyOn(client, 'adminApiFetch').mockResolvedValue(response)
     const result = await getAdminBroadcastHistory()
     expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/dashboard/notifications')
-    expect(result).toEqual([{ formattedId: 'NTF-0001', title: 'Hi', message: 'msg', segment: 'ALL_USERS', sentAt: '2026-08-05T14:00:00Z' }])
+    expect(result).toEqual(response)
+  })
+
+  it('sendAdminBroadcast posts title, message, and segment to the broadcast path', async () => {
+    vi.spyOn(client, 'adminApiFetch').mockResolvedValue({ message: 'Broadcast event successfully queued for delivery.' })
+    const payload = { title: 'Heads up', message: 'We are rolling out a fix.', segment: 'ALL_USERS' as const }
+    await sendAdminBroadcast(payload)
+    expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/broadcast', { method: 'POST', body: payload })
   })
 
   it('getAdminAnalytics fetches the anaytics path exactly as documented, missing the l, and maps ' +

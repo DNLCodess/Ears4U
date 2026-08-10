@@ -88,13 +88,13 @@ export default function AdminDashboardPage() {
           <div className="rounded-2xl bg-card px-4 py-3.5">
             <Skeleton lines={3} />
           </div>
-        ) : broadcasts.data.length === 0 ? (
+        ) : broadcasts.data.notifications.length === 0 ? (
           <div className="rounded-2xl bg-card px-4 py-6 text-center text-sm opacity-55">
             No broadcasts sent yet.
           </div>
         ) : (
           <div className="flex flex-col divide-y divide-fir/10 rounded-2xl bg-card px-4">
-            {broadcasts.data.map(b => (
+            {broadcasts.data.notifications.map(b => (
               <div key={b.formattedId} className="flex items-center justify-between gap-3 py-3">
                 <div className="min-w-0">
                   <p className="truncate text-[14px] font-medium">{b.title}</p>

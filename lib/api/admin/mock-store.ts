@@ -1,6 +1,7 @@
 import { ADMIN_USERS_PAGE_SIZE } from './types'
 import type {
   AdminProfile, AdminDashboardMetrics, AdminBroadcastHistoryItem, AdminNotificationDashboardResponse,
+  AdminBroadcastPayload,
   AdminAnalyticsResponse, AdminTimeSeriesPoint, AdminAiUsagePoint,
   AdminUserSummary, AdminUsersPage, AdminAuditLogItem, AdminEmergencyResource, AdminEmergencyDashboard,
   AdminEmergencyResourceInput,
@@ -45,6 +46,9 @@ const broadcastHistory: AdminNotificationDashboardResponse = {
   reEngagement: 32,
   notifications: broadcastNotifications,
 }
+// Follows the existing fixture's "NTF-000N" convention (see broadcastNotifications above), picking
+// up after the two seeded entries.
+let nextNotificationId = broadcastNotifications.length + 1
 
 function buildTimeSeries(base: number, spread: number, days = 30): AdminTimeSeriesPoint[] {
   const points: AdminTimeSeriesPoint[] = []
@@ -203,6 +207,20 @@ export const adminMockStore = {
   },
   getBroadcastHistory(): AdminNotificationDashboardResponse {
     return broadcastHistory
+  },
+  sendBroadcast(payload: AdminBroadcastPayload): AdminBroadcastHistoryItem {
+    const entry: AdminBroadcastHistoryItem = {
+      formattedId: `NTF-${String(nextNotificationId++).padStart(4, '0')}`,
+      title: payload.title,
+      message: payload.message,
+      segment: payload.segment,
+      sentAt: new Date().toISOString(),
+    }
+    broadcastNotifications.push(entry)
+    broadcastHistory.totalSent += 1
+    if (payload.segment === 'ALL_USERS') broadcastHistory.toAllUsers += 1
+    else if (payload.segment === 'RE_ENGAGEMENT') broadcastHistory.reEngagement += 1
+    return entry
   },
   getAnalytics(): AdminAnalyticsResponse {
     return analytics
