@@ -4,6 +4,7 @@ import type {
   AdminAnalyticsResponse, AdminTimeSeriesPoint, AdminAiUsagePoint,
   AdminUserSummary, AdminUsersPage, AdminAuditLogItem, AdminEmergencyResource, AdminEmergencyDashboard,
   AdminEmergencyResourceInput,
+  AdminSystemSettings, AdminTelemetry, AdminTelemetryPoint,
 } from './types'
 
 let profile: AdminProfile = {
@@ -105,6 +106,37 @@ const emergencyResources: AdminEmergencyResource[] = [
 ]
 let nextResourceId = 7
 
+const settings: AdminSystemSettings = {
+  apiConfiguration: { baseUrl: 'https://api.earsforyou.test', apiVersion: 'v1', rateLimitPerMinute: 60, timeoutMs: 30000 },
+  emailConfiguration: { apiKey: 'sk-x' + '*'.repeat(16) + '3f2a', senderEmail: 'noreply@earsforyou.test', senderName: 'Ears for You' },
+  otpConfiguration: { otpLength: 6, otpExpiryMinutes: 10, maxAttempts: 3, deliveryChannel: 'EMAIL' },
+  securitySettings: { jwtExpiryMinutes: 60, refreshTokenExpiryDays: 7, maxLoginAttempts: 5, sessionTimeoutMinutes: 30, mfaEnabled: false, ipWhitelistEnabled: false },
+  aiConfiguration: { enableAiChat: true, aiSystemPrompt: 'You are a mental health support assistant for Ears for You.' },
+}
+
+function buildTelemetryTimeline(days = 14): AdminTelemetryPoint[] {
+  const points: AdminTelemetryPoint[] = []
+  const start = new Date('2026-07-24T00:00:00Z')
+  for (let i = 0; i < days; i++) {
+    const d = new Date(start)
+    d.setUTCDate(d.getUTCDate() + i)
+    const totalRequests = Math.round(400 + Math.sin(i / 5) * 150 + i * 10)
+    const successfulRequests = Math.round(totalRequests * (0.92 + Math.random() * 0.05))
+    const failedRequests = totalRequests - successfulRequests
+    points.push({ date: d.toISOString().slice(0, 10), totalRequests, successfulRequests, failedRequests })
+  }
+  return points
+}
+
+const telemetry: AdminTelemetry = {
+  totalRequests: 5800,
+  successfulRequests: 5400,
+  failedRequests: 400,
+  averageLatencyMs: 145,
+  providerStatus: 'OPERATIONAL',
+  requestTimeline: buildTelemetryTimeline(),
+}
+
 export const adminMockStore = {
   getProfile(): AdminProfile {
     return profile
@@ -196,5 +228,11 @@ export const adminMockStore = {
   deleteResource(id: number): void {
     const index = emergencyResources.findIndex(r => r.id === id)
     if (index !== -1) emergencyResources.splice(index, 1)
+  },
+  getSettings(): AdminSystemSettings {
+    return settings
+  },
+  getTelemetry(): AdminTelemetry {
+    return telemetry
   },
 }

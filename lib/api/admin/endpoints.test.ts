@@ -242,7 +242,7 @@ describe('admin dashboard and analytics endpoints', () => {
   })
 })
 
-import { getAdminUsers, getAdminAuditLogs } from './endpoints'
+import { getAdminUsers, getAdminAuditLogs, getAdminSettings, getAdminTelemetry } from './endpoints'
 
 describe('admin users read endpoints', () => {
   beforeEach(() => {
@@ -270,6 +270,31 @@ describe('admin users read endpoints', () => {
     vi.spyOn(client, 'adminApiFetch').mockResolvedValue([])
     await getAdminAuditLogs()
     expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/audit-logs')
+  })
+
+  it('getAdminSettings fetches the settings path with no body', async () => {
+    vi.spyOn(client, 'adminApiFetch').mockResolvedValue({
+      apiConfiguration: { baseUrl: 'https://api.example.com', apiVersion: 'v1', rateLimitPerMinute: 60, timeoutMs: 30000 },
+      emailConfiguration: { apiKey: 'sk-x' + '*'.repeat(16) + '3f2a', senderEmail: 'noreply@example.com', senderName: 'Ears for You' },
+      otpConfiguration: { otpLength: 6, otpExpiryMinutes: 10, maxAttempts: 3, deliveryChannel: 'EMAIL' as const },
+      securitySettings: { jwtExpiryMinutes: 60, refreshTokenExpiryDays: 7, maxLoginAttempts: 5, sessionTimeoutMinutes: 30, mfaEnabled: false, ipWhitelistEnabled: false },
+      aiConfiguration: { enableAiChat: true, aiSystemPrompt: 'You are a mental health support assistant.' },
+    })
+    await getAdminSettings()
+    expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/settings')
+  })
+
+  it('getAdminTelemetry fetches the telemetry path with no body', async () => {
+    vi.spyOn(client, 'adminApiFetch').mockResolvedValue({
+      totalRequests: 1000,
+      successfulRequests: 950,
+      failedRequests: 50,
+      averageLatencyMs: 125,
+      providerStatus: 'OPERATIONAL' as const,
+      requestTimeline: [],
+    })
+    await getAdminTelemetry()
+    expect(client.adminApiFetch).toHaveBeenCalledWith('/api/v1/admins/telemetry')
   })
 })
 

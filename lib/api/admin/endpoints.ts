@@ -7,6 +7,7 @@ import type {
   AdminAnalytics, AdminAnalyticsResponse,
   AdminUsersPage, AdminAuditLogItem, AdminEmergencyDashboard,
   AdminEmergencyResource, AdminEmergencyResourceInput,
+  AdminSystemSettings, AdminTelemetry,
 } from './types'
 
 export async function adminLogin(email: string, password: string): Promise<void> {
@@ -183,3 +184,6 @@ export const generateAdminUserOtp = (userEmail: string, kind: keyof typeof FAILO
     `${FAILOVER_OTP_PATHS[kind]}?userEmail=${encodeURIComponent(userEmail)}`,
     { method: 'POST' },
   )
+
+export const getAdminSettings = () => adminApiFetch<AdminSystemSettings>('/api/v1/admins/settings')
+export const getAdminTelemetry = () => adminApiFetch<AdminTelemetry>('/api/v1/admins/telemetry')

@@ -119,6 +119,12 @@ export async function adminMockFetch<T>(path: string, opts: Opts = {}): Promise<
   if (pathname === '/api/v1/admins/audit-logs' && method === 'GET') {
     return delay(adminMockStore.getAuditLogs() as T)
   }
+  if (pathname === '/api/v1/admins/settings' && method === 'GET') {
+    return delay(adminMockStore.getSettings() as T)
+  }
+  if (pathname === '/api/v1/admins/telemetry' && method === 'GET') {
+    return delay(adminMockStore.getTelemetry() as T)
+  }
 
   // The real backend's suspend/reactivate/change-email/failover-otp endpoints all take
   // @RequestParam query params, never a JSON body - read from the URL's query string here too,

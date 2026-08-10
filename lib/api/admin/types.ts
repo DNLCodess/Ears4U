@@ -132,3 +132,31 @@ export interface AdminEmergencyDashboard {
   activeCountriesCount: number
   resources: AdminEmergencyResource[]
 }
+export interface AdminSystemSettings {
+  apiConfiguration: { baseUrl: string; apiVersion: string; rateLimitPerMinute: number; timeoutMs: number }
+  emailConfiguration: { apiKey: string; senderEmail: string; senderName: string }
+  otpConfiguration: { otpLength: number; otpExpiryMinutes: number; maxAttempts: number; deliveryChannel: 'EMAIL' | 'SMS' | 'BOTH' }
+  securitySettings: { jwtExpiryMinutes: number; refreshTokenExpiryDays: number; maxLoginAttempts: number; sessionTimeoutMinutes: number; mfaEnabled: boolean; ipWhitelistEnabled: boolean }
+  aiConfiguration: { enableAiChat: boolean; aiSystemPrompt: string }
+}
+export type AdminSettingResetKey =
+  | 'api_base_url' | 'api_version' | 'api_rate_limit_per_minute' | 'api_timeout_ms'
+  | 'email_api_key' | 'email_sender_email' | 'email_sender_name'
+  | 'otp_length' | 'otp_expiry_minutes' | 'otp_max_attempts' | 'otp_delivery_channel'
+  | 'jwt_expiry_minutes' | 'jwt_refresh_expiry_days' | 'security_max_login_attempts'
+  | 'session_timeout_minutes' | 'security_mfa_enabled' | 'security_ip_whitelist_enabled'
+  | 'enable_ai_chat' | 'ai_system_prompt'
+export interface AdminTelemetryPoint {
+  date: string
+  totalRequests: number
+  successfulRequests: number
+  failedRequests: number
+}
+export interface AdminTelemetry {
+  totalRequests: number
+  successfulRequests: number
+  failedRequests: number
+  averageLatencyMs: number
+  providerStatus: 'OPERATIONAL' | 'OFFLINE'
+  requestTimeline: AdminTelemetryPoint[]
+}
